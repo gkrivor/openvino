@@ -192,6 +192,30 @@ const ov::OpSet& ov::get_opset10() {
     return opset;
 }
 
+size_t get_initial_opset(const std::shared_ptr<ngraph::Node> &node) {
+    auto type_info = node->get_type_info();
+    std::vector<ngraph::OpSet> opsets;
+    opsets.push_back(ngraph::get_opset1());
+    opsets.push_back(ngraph::get_opset2());
+    opsets.push_back(ngraph::get_opset3());
+    opsets.push_back(ngraph::get_opset4());
+    opsets.push_back(ngraph::get_opset5());
+    opsets.push_back(ngraph::get_opset6());
+    opsets.push_back(ngraph::get_opset7());
+    opsets.push_back(ngraph::get_opset8());
+    opsets.push_back(ngraph::get_opset9());
+    opsets.push_back(ngraph::get_opset10());
+
+    for (size_t i = 0; i < opsets.size(); ++i) {
+        if (opsets[i].contains_type(type_info)) {
+            return i+1;
+        }
+    }
+    std::stringstream msg;
+    msg << "Initial opset for operation " << type_info.name << "::" << type_info.version << "was not found!";
+    throw ngraph::ngraph_error(msg.str());
+}
+
 const ngraph::OpSet& ngraph::get_opset1() {
     static OpSet opset(ov::get_opset1());
     return opset;

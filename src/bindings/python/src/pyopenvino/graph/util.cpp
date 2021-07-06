@@ -8,6 +8,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "ngraph/opsets/opset.hpp"
 #include "openvino/pass/manager.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
@@ -29,7 +30,6 @@ void regmodule_graph_util(py::module m) {
             py::arg("output"),
             R"(
                 Runs an estimation of source tensor.
-
                 :param index: Output node.
                 :type index: openvino.runtime.Output
                 :return: If it succeeded to calculate both bounds and
@@ -37,6 +37,20 @@ void regmodule_graph_util(py::module m) {
                          from the resulting bound, otherwise Null.
                 :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
             )");
+
+    mod.def("get_initial_opset",
+            &ngraph::get_initial_opset,
+            py::arg("node"),
+            R"(
+                Runs an estimation of source tensor.
+                :param index: Output node.
+                :type index: openvino.runtime.Output
+                :return: If it succeeded to calculate both bounds and
+                         they are the same, returns Constant operation
+                         from the resulting bound, otherwise Null.
+                :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
+            )");
+
     mod.def(
         "clone_model",
         [](ov::Model& model) {
