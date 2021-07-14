@@ -23,7 +23,7 @@ public:
         return std::unique_ptr<OPCache>(new OPCache());
     }
 
-    void update_ops_cache(const std::shared_ptr<ngraph::Node> &op, const std::string &source_model = {});
+    void update_ops_cache(const std::shared_ptr<ngraph::Node> &op, const std::string &source_model);
 
     void update_ops_cache(const std::shared_ptr<ngraph::Function> &func, const bool extract_body = true, const std::string &source_model = {});
 

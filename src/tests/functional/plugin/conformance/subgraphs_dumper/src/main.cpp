@@ -62,8 +62,8 @@ void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
                 timeinfo = localtime(&rawtime);  // NOLINT no localtime_r in C++11
 
                 strftime(buffer, 20, "%H:%M:%S", timeinfo);
-                std::cout << "[" << std::string(buffer) << "][" << i + 1 << "/" << all_models << "]Processing model: "
-                          << model.xml << std::endl;
+                 std::cout << "[" << std::string(buffer) << "][" << i + 1 << "/" << all_models << "]Processing model: "
+                           << model.xml << std::endl;
                 if (!CommonTestUtils::fileExists(model.bin)) {
                     std::cout << "Corresponding .bin file for the model " << model.bin << " doesn't exist" << std::endl;
                     continue;
@@ -109,7 +109,8 @@ int main(int argc, char *argv[]) {
     auto cache = SubgraphsDumper::OPCache::make_cache();
     cacheModels(cache, ret_code, cachedOps, FLAGS_extract_body);
     cacheModels(cache, ret_code, models, FLAGS_extract_body);
-    cache->serialize_cached_ops(FLAGS_output_folder);
+
+    //cache->serialize_cached_ops(FLAGS_output_folder);
 
     return ret_code;
 }
