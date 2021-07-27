@@ -12,7 +12,7 @@ void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
     std::shared_ptr<InferenceEngine::Core> core = PluginCache::get().ie();
     auto availableDevices = core->GetAvailableDevices();
     std::string targetDevice = std::string(ov::test::conformance::targetDevice);
-    if (std::find(availableDevices.begin(), availableDevices.end(), targetDevice) == availableDevices.end()) {
+    if (std::find(availableDevices.begin(), availableDevices.end(), targetDevice) == availableDevices.end() && !targetDevice.empty()) {
         core->RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
                                                                 std::string(ov::test::conformance::targetPluginName) + IE_BUILD_POSTFIX),
                              ov::test::conformance::targetDevice);
