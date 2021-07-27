@@ -146,12 +146,54 @@ void ReadIRTest::SetUp() {
             staticShapes.push_back(param->get_shape());
         } else {
             staticShapes.push_back(param->get_partial_shape().get_max_shape());
-        }
-    }
     for (const auto& param : function->get_parameters()) {
         inputDynamicShapes.push_back(param->get_partial_shape());
     }
     targetStaticShapes.push_back(staticShapes);
+}
+
+void ReadIRBase::GenerateInputs() {
+    auto inputMap = getInputMap();
+    const auto &inputsInfo = executableNetwork.GetInputsInfo();
+    for (const auto &param : function->get_parameters()) {
+        const auto infoIt = inputsInfo.find(param->get_friendly_name());
+        GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+
+        const auto &info = infoIt->second;
+        for (size_t i = 0; i < param->get_output_size(); i++) {
+            for (const auto &node : param->get_output_target_inputs(i)) {
+                const auto nodePtr = node.get_node()->shared_from_this();
+                auto it = inputMap.find(nodePtr->get_type_info());
+                for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
+                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
+                        inputs.push_back(it->second(nodePtr, *info, port));
+                    }
+                }
+            }
+        }
+    }
+}
+
+std::vector<InferenceEngine::Blob::Ptr> ReadIRBase::GetOutputs() {
+    std::vector<InferenceEngine::Blob::Ptr> outputs;
+    for (const auto &result : function->get_results()) {
+        for (size_t inPort = 0; inPort < result->get_input_size(); ++inPort) {
+            const auto &inputNode = result->get_input_node_shared_ptr(inPort);
+            for (size_t outPort = 0; outPort < inputNode->get_output_size(); ++outPort) {
+                for (const auto &out : inputNode->get_output_target_inputs(outPort)) {
+                    if (out.get_node()->shared_from_this() == result) {
+                        std::string name = inputNode->get_friendly_name();
+                        if (inputNode->get_output_size() > 1) {
+                            name += "." + std::to_string(outPort);
+                        }
+                        outputs.push_back(inferRequest.GetBlob(name));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return outputs;
 }
 
 } // namespace subgraph
