@@ -167,6 +167,7 @@ size_t ngraph::get_initial_opset(const std::shared_ptr<ngraph::Node> &node) {
     opsets.push_back(ngraph::get_opset5());
     opsets.push_back(ngraph::get_opset6());
     opsets.push_back(ngraph::get_opset7());
+    opsets.push_back(ngraph::get_opset8());
 
     for (size_t i = 0; i < opsets.size(); ++i) {
         if (opsets[i].contains_type(type_info)) {
@@ -174,6 +175,6 @@ size_t ngraph::get_initial_opset(const std::shared_ptr<ngraph::Node> &node) {
         }
     }
     std::stringstream msg;
-    msg << "Initial opset for operation " << type_info.name << "::" << type_info.version << "was not found!";
+    msg << "Initial opset for operation " << type_info.name << "::" << type_info.version << " isn't found!";
     throw ngraph::ngraph_error(msg.str());
 }
