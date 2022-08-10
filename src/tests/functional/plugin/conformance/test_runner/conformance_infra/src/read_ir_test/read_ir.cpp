@@ -239,7 +239,7 @@ void ReadIRTest::SetUp() {
         IE_THROW() << "Hange happens";
     }
 }
-
+/*
 void ReadIRBase::GenerateInputs() {
     auto inputMap = getInputMap();
     const auto &inputsInfo = executableNetwork.GetInputsInfo();
@@ -283,7 +283,7 @@ std::vector<InferenceEngine::Blob::Ptr> ReadIRBase::GetOutputs() {
     }
     return outputs;
 }
-
+*/
 } // namespace subgraph
 } // namespace test
 } // namespace ov

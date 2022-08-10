@@ -212,7 +212,7 @@ size_t get_initial_opset(const std::shared_ptr<ngraph::Node> &node) {
         }
     }
     std::stringstream msg;
-    msg << "Initial opset for operation " << type_info.name << "::" << type_info.version << "was not found!";
+    msg << "Initial opset for operation " << type_info.name << "::" << type_info.version_id << "was not found!";
     throw ngraph::ngraph_error(msg.str());
 }
 

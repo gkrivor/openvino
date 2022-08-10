@@ -21,7 +21,7 @@ using ReadIRParams = std::tuple<
         std::string,                         // IR path
         std::string,                         // Target Device
         ov::AnyMap>;                         // Plugin Config
-
+/*
 class ReadIRBase : public ov::test::SubgraphBaseTest {
 public:
     void GenerateInputs() override;
@@ -30,9 +30,10 @@ public:
                  const std::vector<InferenceEngine::Blob::Ptr> &actual) override;
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs() override;
 };
+*/
 
 class ReadIRTest : public testing::WithParamInterface<ReadIRParams>,
-                   virtual public ReadIRBase {
+                   virtual public /*ReadIRBase*/ ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj);
     void query_model() override;

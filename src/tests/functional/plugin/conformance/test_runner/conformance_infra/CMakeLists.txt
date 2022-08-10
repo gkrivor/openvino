@@ -19,7 +19,4 @@ addIeTarget(
                 gflags
                 funcSharedTests
 )
-if (ENABLE_PYTHON)
-    add_subdirectory(python)
-endif()
 ie_faster_build(${TARGET_NAME} UNITY)
