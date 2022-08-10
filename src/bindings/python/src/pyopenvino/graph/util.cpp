@@ -42,13 +42,11 @@ void regmodule_graph_util(py::module m) {
             &ngraph::get_initial_opset,
             py::arg("node"),
             R"(
-                Runs an estimation of source tensor.
-                :param index: Output node.
-                :type index: openvino.runtime.Output
-                :return: If it succeeded to calculate both bounds and
-                         they are the same, returns Constant operation
-                         from the resulting bound, otherwise Null.
-                :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
+                Returns initial opset of a passed node.
+                :param node: Input node.
+                :type node: openvino.runtime.Node
+                :return: Returns initial opset index
+                :rtype: int
             )");
 
     mod.def(
