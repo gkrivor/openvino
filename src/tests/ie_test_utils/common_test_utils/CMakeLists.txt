@@ -62,6 +62,18 @@ function(add_common_utils ADD_TARGET_NAME)
     target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
+
+    if(ENABLE_CONFORMANCE_PGQL)
+        target_compile_definitions(${ADD_TARGET_NAME} PRIVATE ENABLE_CONFORMANCE_PGQL)
+        target_include_directories(${ADD_TARGET_NAME} PRIVATE
+            ${POSTGRES_LIBPQ_INCLUDE}
+            ${POSTGRES_LIBPQ_INCLUDE}/../../include
+        )
+        target_link_directories(${ADD_TARGET_NAME} PUBLIC ${POSTGRES_LIBPQ})
+        if(WIN32)
+            target_link_libraries(${ADD_TARGET_NAME} PUBLIC libpq.lib)
+        endif()
+    endif()
 endfunction()
 
 set(TARGET_NAME commonTestUtils)
