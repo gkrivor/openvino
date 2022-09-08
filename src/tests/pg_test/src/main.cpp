@@ -1,18 +1,22 @@
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 #include <stdio.h>
 #if ENABLE_CONFORMANCE_PGQL
-#include <stdlib.h>
-#include <memory>
-#include "libpq-fe.h"
+#    include <stdlib.h>
+
+#    include <memory>
+
+#    include "libpq-fe.h"
 #endif
 
-int main(int, char**)
-{
+int main(int, char**) {
 #if ENABLE_CONFORMANCE_PGQL
     std::shared_ptr<PGconn> conn;
     std::shared_ptr<PGresult> res;
     ExecStatusType rType;
     const char* conninfo =
-        "host=conformancedb.sclab.intel.com port=8080 user=postgres password=Idjfnj834r dbname=postgres";
+        "host=conformancedb.sclab.intel.com port=5432 user=postgres password=Idjfnj834r dbname=testing";
 #endif
     printf("Hello Postgres!\n");
 
@@ -41,7 +45,7 @@ int main(int, char**)
     rType = PQresultStatus(res.get());
 
     if (rType != PGRES_TUPLES_OK) {
-        printf("Cannot fetch data %d, %s", int(rType), PQresultErrorMessage(res.get()));
+        printf("Cannot fetch data %d, %s", static_cast<int>(rType), PQresultErrorMessage(res.get()));
         return 2;
     }
 

@@ -26,6 +26,7 @@
 #if ENABLE_CONFORMANCE_PGQL
 #include <sstream>
 #include <chrono>
+#include <pugixml.hpp>
 #include "libpq-fe.h"
 #define PGQL_DEBUG
 #undef PGQL_DEBUG
@@ -97,10 +98,13 @@ std::string TestsCommon::GetTestName() const {
     PostgreSQL Handler class members
 */
 #ifdef PGQL_DEBUG
-#define SAY_HELLO std::cout << "Hi folks, " << __FUNCTION__ << std::endl;
+#    define SAY_HELLO std::cout << "Hi folks, " << ##__FUNCTION__ << std::endl;
 #else
-#define SAY_HELLO 
+#    define SAY_HELLO \
+        {}
 #endif
+
+#ifdef ENABLE_CONFORMANCE_PGQL
 /*
     This class implements singleton which operates with a connection to PostgreSQL server.
 */
@@ -133,7 +137,40 @@ public:
     std::shared_ptr<PGresult> Query(const char* query) {
         if (!isConnected)
             return std::shared_ptr<PGresult>(nullptr, PGresultDeleter{});
-        return std::shared_ptr<PGresult>(PQexec(this->activeConnection, query), PGresultDeleter{});
+        auto result = std::shared_ptr<PGresult>(PQexec(this->activeConnection, query), PGresultDeleter{});
+        //Connection could be closed by a timeout, we may try to reconnect once.
+        //We don't reconnect on each call because it may make testing significantly slow in
+        //case of connection issues. Better to finish testing with incomplete results and
+        //free a machine. Otherwise we will lose all results.
+        if (result.get() == nullptr) {
+            TryReconnect();
+            // If reconnection attempt was successfull - let's try to set new query
+            if (isConnected) {
+                result.reset(PQexec(this->activeConnection, query));
+            }
+        }
+        return result;
+    }
+
+    void TryReconnect(void) {
+        if (!isConnected) {
+            return;
+        }
+        if (activeConnection != nullptr) {
+            try {
+                PQfinish(activeConnection);
+            } catch (...) {
+                std::cerr << "An exception while finishing PostgreSQL connection" << std::endl;
+            }
+            this->activeConnection = nullptr;
+            this->isConnected = false;
+        }
+        std::cerr << "Reconnecting to the PostgreSQL server..." << std::endl;
+        Initialize();
+    }
+
+    PGconn* GetConnection(void) {
+        return this->activeConnection;
     }
     ~PostgreSQLConnection();
 };
@@ -147,7 +184,7 @@ PostgreSQLConnection::~PostgreSQLConnection() {
     if (activeConnection) {
         PQfinish(this->activeConnection);
         this->activeConnection = nullptr;
-        isConnected = false;
+        this->isConnected = false;
     }
 }
 
@@ -194,6 +231,18 @@ bool PostgreSQLConnection::Initialize() {
         return; \
     }
 
+/*
+    This is a workaround to place all data in one cpp file.
+
+    In production version it has to be separated for heeader and source
+    and this part should be removed;
+
+*/
+
+/*
+    Known issues:
+    - String escape isn't applied for all fields (PoC limitation)
+*/
 class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     const char* session_id = nullptr;
     bool isPostgresEnabled = false;
@@ -206,7 +255,45 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     uint64_t testSuiteId = 0;
     uint64_t testId = 0;
 
-    void OnTestProgramStart(const ::testing::UnitTest& /*unit_test*/) override {
+    /*
+    This method is used for parsing serialized value_param string.
+
+    Known limitations:
+    It doesn't read values in inner tuples/arrays/etc.
+    */
+    std::vector<std::string> ParseValueParam(std::string text) {
+        std::vector<std::string> results;
+        size_t beginning = 0;
+        size_t chrPos = 0;
+        char pairingChar = 0;
+        for (auto it = text.begin(); it != text.end(); ++it, ++chrPos) {
+            if (pairingChar == 0) {  // Looking for opening char
+                switch (*it) {
+                case '"':
+                case '\'':
+                    pairingChar = *it;
+                    break;
+                case '{':
+                    pairingChar = '}';
+                    break;
+                }
+                beginning = chrPos + 1;
+            } else if (*it != pairingChar) {  // Skip while don't face with paring char
+                continue;
+            } else {
+                if (chrPos < 3 || (text[chrPos - 1] != '\\' && text[chrPos - 2] != '\\')) {
+                    size_t substrLength = chrPos - beginning;
+                    if (substrLength > 0 && (beginning + substrLength) < text.length()) {
+                        results.push_back(text.substr(beginning, chrPos - beginning));
+                    }
+                    pairingChar = 0;
+                }
+            }
+        }
+        return results;
+    }
+/*
+    void OnTestProgramStart(const ::testing::UnitTest& unit_test) override {
     }
     void OnTestIterationStart(const ::testing::UnitTest& unit_test, int iteration) override {
         std::stringstream sstr;
@@ -216,12 +303,13 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         std::cerr << sstr.str() << std::endl;
 #endif
     }
-    void OnEnvironmentsSetUpStart(const ::testing::UnitTest& /*unit_test*/) override {
+    void OnEnvironmentsSetUpStart(const ::testing::UnitTest& unit_test) override {
         SAY_HELLO;
     }
-    void OnEnvironmentsSetUpEnd(const ::testing::UnitTest& /*unit_test*/) override {
+    void OnEnvironmentsSetUpEnd(const ::testing::UnitTest& unit_test) override {
         SAY_HELLO;
     }
+*/
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
         if (!this->isPostgresEnabled)
             return;
@@ -245,7 +333,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                       << std::endl;
         }
 
-        sstr.str(std::string());
+        sstr.str("");
+        sstr.clear();
         sstr << "INSERT INTO suite_results (sr_id, session_id, suite_id) VALUES (DEFAULT, " << this->sessionId << ", "
              << this->testSuiteNameId << ") RETURNING sr_id";
 #ifdef PGQL_DEBUG
@@ -274,12 +363,68 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         if (!this->isPostgresEnabled)
             return;
 
+        PostgreSQLConnection& conn = PostgreSQLConnection::GetInstance();
+
         std::stringstream sstr;
-        sstr << "SELECT GET_TEST_NAME('" << test_info.name() << "', " << this->testSuiteNameId << ")";
+        sstr << "SELECT GET_TEST_NAME(" << this->testSuiteNameId << ", '" << test_info.name() << "'";
+        /*
+            This part might be specific for different tests. In case amount of cases will be greater than, for example, 2
+            the code should be refactored to use a map on test-dependent functions/methods.
+        */
+        if (test_info.value_param() != NULL && strcmp(::testing::UnitTest::GetInstance()->current_test_suite()->name(), "conformance/ReadIRTest") == 0) {
+            /*
+            This part of code responsible for cleaning source model XML from
+            meaningless information which might be changed run2run by SubgraphDumper
+            or similar tool
+            */
+            std::string testDescription;
+            {
+                std::ostringstream normalizedXml;
+                std::vector<std::string> params = ParseValueParam(test_info.value_param()); //Extracting value_params from serialized string
+
+                if (params.size() > 0) {
+                    struct modelNormalizer : pugi::xml_tree_walker {
+                        bool for_each(pugi::xml_node& node) override {
+                            if (node.type() == pugi::node_element) {
+                                node.remove_attribute("name");
+                            }
+                            return true;
+                        }
+                    } modelNorm;
+
+                    pugi::xml_document normalizedModel;
+                    normalizedModel.load_file(params[0].c_str());
+                    normalizedModel.traverse(modelNorm);
+                    normalizedModel.save(normalizedXml, "");  // No indent expected, let's reduce size of xml
+                    testDescription = normalizedXml.str();
+                }
+            }
+            if (!testDescription.empty()) {
+                /*
+                    A generated XML may contains characters should be escaped in a query.
+                */
+                std::vector<char> escapedDescription;
+                escapedDescription.resize(testDescription.length() * 2); //Doc requires to allocate two times more than initial length
+                escapedDescription[0] = 0; //
+                int errCode = 0;
+                size_t writtenSize = 0;
+                writtenSize = PQescapeStringConn(conn.GetConnection(),
+                                   escapedDescription.data(),
+                                   testDescription.c_str(),
+                                   testDescription.length(),
+                                   &errCode);
+                if (writtenSize >= testDescription.length()) {
+                    sstr << ", '" << std::string(escapedDescription.data()) << "'";
+                } else {
+                    std::cerr << "Cannot escape string (error code is " << errCode << "):" << std::endl << testDescription;
+                }
+            }
+        }
+        sstr << ")";
+
 #ifdef PGQL_DEBUG
         std::cerr << sstr.str() << std::endl;
 #endif
-        PostgreSQLConnection& conn = PostgreSQLConnection::GetInstance();
         auto pgresult = conn.Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         ExecStatusType execStatus = PQresultStatus(pgresult.get());
@@ -291,8 +436,10 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             std::cerr << "Cannot interpret a returned tn_id, value: " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;
         }
 
-        sstr.str(std::string());
-        sstr << "INSERT INTO test_results (tr_id, session_id, suite_id, test_id) VALUES (DEFAULT, " << this->sessionId << ", " << this->testSuiteId << ", " << this->testNameId << ") RETURNING tr_id";
+        sstr.str("");
+        sstr.clear();
+        sstr << "INSERT INTO test_results (tr_id, session_id, suite_id, test_id) VALUES (DEFAULT, " << this->sessionId
+             << ", " << this->testSuiteId << ", " << this->testNameId << ") RETURNING tr_id";
 #ifdef PGQL_DEBUG
         std::cerr << sstr.str() << std::endl;
 #endif
@@ -363,22 +510,23 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             OnTestSuiteEnd(test_case);
     }
 #endif  //  GTEST_REMOVE_LEGACY_TEST_CASEAPI_
-
-    void OnEnvironmentsTearDownStart(const ::testing::UnitTest& /*unit_test*/) override {
+/*
+    void OnEnvironmentsTearDownStart(const ::testing::UnitTest& unit_test) override {
         SAY_HELLO;
     }
-    void OnEnvironmentsTearDownEnd(const ::testing::UnitTest& /*unit_test*/) override {
+    void OnEnvironmentsTearDownEnd(const ::testing::UnitTest& unit_test) override {
         SAY_HELLO;
     }
-    void OnTestIterationEnd(const ::testing::UnitTest& /*unit_test*/, int /*iteration*/) override {
+    void OnTestIterationEnd(const ::testing::UnitTest& unit_test, int iteration) override {
         std::stringstream sstr;
         sstr << "UPDATE test_iterations WHERE id=... SET finished=\"finishdate\")";
 #ifdef PGQL_DEBUG
         std::cerr << sstr.str() << std::endl;
 #endif
     }
-    void OnTestProgramEnd(const ::testing::UnitTest& /*unit_test*/) override {
+    void OnTestProgramEnd(const ::testing::UnitTest& unit_test) override {
     }
+*/
     /* Do nothing here. If you need to do anything on creation - it should be fully undersandable. */
     PostgreSQLEventListener() {
         this->session_id = std::getenv(PGQL_ENV_SESS_NAME);
@@ -437,11 +585,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     PostgreSQLEventListener(const PostgreSQLEventListener&) = delete;
     PostgreSQLEventListener& operator=(const PostgreSQLEventListener&) = delete;
 
-public:
-    static PostgreSQLEventListener* GetListener() {
-        static PostgreSQLEventListener listener;
-        return &listener;
-    }
+    friend class PostgreSQLEnvironment;
 };
 
 class PostgreSQLEnvironment : public ::testing::Environment {
@@ -452,18 +596,20 @@ public:
     ~PostgreSQLEnvironment() {
         SAY_HELLO;
     }
-    virtual void SetUp() {
+    void SetUp() override {
         SAY_HELLO;
         if (std::getenv(PGQL_ENV_SESS_NAME) != nullptr && std::getenv(PGQL_ENV_CONN_NAME) != nullptr) {
-            ::testing::UnitTest::GetInstance()->listeners().Append(PostgreSQLEventListener::GetListener());
+            ::testing::UnitTest::GetInstance()->listeners().Append(new PostgreSQLEventListener());
         }
     }
-    virtual void TearDown() {
+    void TearDown() override {
         SAY_HELLO;
     }
 };
 
-::testing::Environment *PostgreSQLEnvironment_Reg = ::testing::AddGlobalTestEnvironment(new PostgreSQLEnvironment());
+::testing::Environment* PostgreSQLEnvironment_Reg =
+    ::testing::AddGlobalTestEnvironment(new PostgreSQLEnvironment());
+#endif
 
 PostgreSQLHandler::PostgreSQLHandler() {
     std::cout << "PostgreSQLHandler Started\n";
@@ -512,17 +658,10 @@ PostgreSQLHandler::~PostgreSQLHandler() {
         else if (gTest->IsSkipped())
             std::cout << "Skipped\n";
         else
-            std::cout << "Success!\n";    
+            std::cout << "Success!\n";
     }
+
     std::cout << "PostgreSQLHandler Finished\n";
-}
-
-void PostgreSQLHandler::SetUp() {
-    SAY_HELLO;
-}
-
-void PostgreSQLHandler::TearDown() {
-    SAY_HELLO;
 }
 
 }  // namespace CommonTestUtils

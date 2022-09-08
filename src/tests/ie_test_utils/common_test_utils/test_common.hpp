@@ -10,32 +10,27 @@
 #include "test_assertions.hpp"
 
 namespace CommonTestUtils {
-
-class PostgreSQLHandler {
+#ifdef ENABLE_CONFORMANCE_PGQL
+class PostgreSQLHandler : virtual public ::testing::Test {
 protected:
     PostgreSQLHandler();
     virtual ~PostgreSQLHandler();
-
-    virtual void SetUp();
-    virtual void TearDown();
 };
+#endif
 
-class TestsCommon : virtual public ::testing::Test, public PostgreSQLHandler {
+class TestsCommon :
+#ifndef ENABLE_CONFORMANCE_PGQL
+    virtual public ::testing::Test
+#else
+    virtual public PostgreSQLHandler
+#endif
+{
 protected:
     TestsCommon();
     ~TestsCommon() override;
 
     static std::string GetTimestamp();
     std::string GetTestName() const;
-
-    virtual void SetUp() override {
-        PostgreSQLHandler::SetUp();
-    }
-    virtual void TearDown() override {
-        PostgreSQLHandler::TearDown();
-    }
-
-    friend class PostgreSQLHandler;
 };
 
 }  // namespace CommonTestUtils

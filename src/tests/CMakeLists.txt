@@ -35,6 +35,3 @@ add_subdirectory(engines_util)
 if(ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)
 endif()
-
-#Testing
-add_subdirectory(pg_test)
