@@ -44,12 +44,15 @@ inline ov::AnyMap readPluginConfig(const std::string &configFilePath) {
     return config;
 }
 
-inline std::vector<std::string> getModelPaths(const std::vector<std::string>& conformance_ir_paths) {
+inline std::vector<std::string> getModelPaths(const std::vector<std::string>& conformance_ir_paths, std::string opName) {
     std::vector<std::string> result;
+    std::cout << "Reading " << opName << std::endl;
     for (const auto& conformance_ir_path : conformance_ir_paths) {
         std::vector<std::string> tmp_buf;
         if (CommonTestUtils::directoryExists(conformance_ir_path)) {
-            tmp_buf = CommonTestUtils::getFileListByPatternRecursive({conformance_ir_path}, {std::regex(R"(.*\.xml)")});
+            tmp_buf = CommonTestUtils::getFileListByPatternRecursive(
+                {conformance_ir_path},
+                {std::regex(std::string("(.*") + opName + std::string("_[0-9]*\.xml)"))});
         } else if (CommonTestUtils::fileExists(conformance_ir_path)) {
             tmp_buf = CommonTestUtils::readListFiles({conformance_ir_path});
         } else {

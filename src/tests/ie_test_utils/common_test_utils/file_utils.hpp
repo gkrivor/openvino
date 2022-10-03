@@ -197,8 +197,9 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
 inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<std::string>& folderPaths,
                                                               const std::vector<std::regex>& patterns) {
     auto getFileListByPattern = [&patterns](const std::string& folderPath) {
-        std::vector<std::string> allFilePaths;
-        CommonTestUtils::directoryFileListRecursive(folderPath, allFilePaths);
+        static std::vector<std::string> allFilePaths;
+        if (allFilePaths.size() == 0)
+            CommonTestUtils::directoryFileListRecursive(folderPath, allFilePaths);
         std::set<std::string> result;
         for (auto& filePath : allFilePaths) {
             for (const auto& pattern : patterns) {

@@ -16,13 +16,20 @@ using namespace ov::test::subgraph;
 
 namespace {
 
-INSTANTIATE_TEST_SUITE_P(conformance,
-                         ReadIRTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(getModelPaths(IRFolderPaths)),
-                                 ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
-                         ReadIRTest::getTestCaseName);
+#include <ngraph/ngraph.hpp>
+
+#define NGRAPH_OP(NAME, NAMESPACE)                                                                         \
+    INSTANTIATE_TEST_SUITE_P(conformance##NAME,                                                            \
+                             ReadIRTest,                                                                   \
+                             ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths, #NAME)),  \
+                                                ::testing::Values(targetDevice),                           \
+                                                ::testing::Values(pluginConfig)),                          \
+                             ReadIRTest::getTestCaseName); \
+
+#include <ngraph/opsets/opset9_tbl.hpp>
+#undef NGRAPH_OP
+
+
 }  // namespace
 
 }  // namespace op
