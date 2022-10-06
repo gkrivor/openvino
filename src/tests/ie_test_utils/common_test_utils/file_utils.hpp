@@ -214,7 +214,7 @@ inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<
     std::vector<std::string> result;
     for (auto &&folderPath : folderPaths) {
         if (!CommonTestUtils::directoryExists(folderPath)) {
-            std::string msg = "Input directory (" + folderPath + ") doesn't not exist!";
+            std::string msg = "Input folder (" + folderPath + ") doesn't not exist!";
             throw std::runtime_error(msg);
         }
         auto fileListByPattern = getFileListByPattern(folderPath);
@@ -249,7 +249,7 @@ inline std::vector<std::string> readListFiles(const std::vector<std::string>& fi
     std::vector<std::string> res;
     for (const auto& filePath : filePaths) {
         if (!fileExists(filePath)) {
-            std::string msg = "Input directory (" + filePath + ") doesn't not exist!";
+            std::string msg = "Input file (" + filePath + ") doesn't not exist!";
             throw std::runtime_error(msg);
         }
         std::ifstream file(filePath);
@@ -261,7 +261,7 @@ inline std::vector<std::string> readListFiles(const std::vector<std::string>& fi
                 }
             }
         } else {
-            std::string msg = "Error in opening file: " + filePath;
+            std::string msg = "Error while opening file: " + filePath;
             throw std::runtime_error(msg);
         }
         file.close();
