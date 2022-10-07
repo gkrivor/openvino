@@ -43,7 +43,7 @@ public:
     }
 };
 
-const NGRAPH_API size_t get_initial_opset(const std::shared_ptr<Node> &node);
+const NGRAPH_API size_t get_initial_opset(const std::shared_ptr<ngraph::Node>& node);
 const NGRAPH_API OpSet& get_opset1();
 const NGRAPH_API OpSet& get_opset2();
 const NGRAPH_API OpSet& get_opset3();
