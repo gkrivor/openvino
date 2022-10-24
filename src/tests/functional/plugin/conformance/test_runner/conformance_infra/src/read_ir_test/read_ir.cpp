@@ -220,6 +220,10 @@ void ReadIRTest::SetUp() {
     if (inputShapes.empty()) {
         GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
     }
+#ifdef ENABLE_CONFORMANCE_PGQL
+    this->SetCustomField("targetDevice", this->targetDevice);
+    //this->SetCustomField("config", this->configuration);
+#endif
     init_input_shapes(inputShapes);
     is_report_stages = true;
 }

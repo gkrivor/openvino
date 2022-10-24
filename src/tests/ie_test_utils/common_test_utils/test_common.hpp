@@ -8,13 +8,23 @@
 
 #include <string>
 #include "test_assertions.hpp"
+#ifdef ENABLE_CONFORMANCE_PGQL
+#include <map>
+#endif
 
 namespace CommonTestUtils {
 #ifdef ENABLE_CONFORMANCE_PGQL
+struct PostgreSQLCustomData;
 class PostgreSQLHandler : virtual public ::testing::Test {
+    PostgreSQLCustomData* customData;
+
 protected:
     PostgreSQLHandler();
-    virtual ~PostgreSQLHandler();
+    ~PostgreSQLHandler() override;
+
+    bool SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite = true);
+    std::string GetCustomField(const std::string fieldName, const std::string defaultValue = "") const;
+    bool RemoveCustomField(const std::string fieldName);
 };
 #endif
 
