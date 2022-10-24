@@ -29,7 +29,7 @@
 #include <pugixml.hpp>
 #include "libpq-fe.h"
 #define PGQL_DEBUG
-#undef PGQL_DEBUG
+//#undef PGQL_DEBUG
 static const char* PGQL_ENV_CONN_NAME = "OV_POSTGRES_CONN";  //Environment variable with connection settings
 static const char* PGQL_ENV_SESS_NAME = "OV_TEST_SESSION_ID";//Environment variable identifies current session
 #endif
@@ -244,6 +244,7 @@ bool PostgreSQLConnection::Initialize() {
     - String escape isn't applied for all fields (PoC limitation)
 */
 class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
+
     const char* session_id = nullptr;
     bool isPostgresEnabled = false;
 
@@ -254,6 +255,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     uint64_t testNameId = 0;
     uint64_t testSuiteId = 0;
     uint64_t testId = 0;
+    std::map<std::string, std::string> testCustomFields;
 
     /*
     This method is used for parsing serialized value_param string.
@@ -586,7 +588,42 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     PostgreSQLEventListener& operator=(const PostgreSQLEventListener&) = delete;
 
     friend class PostgreSQLEnvironment;
+
+public:
+    bool SetCustomField(const std::string fieldName,
+                                           const std::string fieldValue,
+                                           const bool rewrite) {
+        auto field = this->testCustomFields.find(fieldName);
+        if (rewrite || field != this->testCustomFields.end()) {
+            this->testCustomFields[fieldName] = fieldValue;
+            return true;
+        }
+        return false;
+    }
+
+    std::string GetCustomField(const std::string fieldName, const std::string defaultValue) const {
+        auto field = this->testCustomFields.find(fieldName);
+        if (field != this->testCustomFields.end()) {
+            return field->second;
+        }
+        return defaultValue;
+    }
+
+    bool RemoveCustomField(const std::string fieldName) {
+        auto field = this->testCustomFields.find(fieldName);
+        if (field != this->testCustomFields.end()) {
+            this->testCustomFields.erase(field);
+            return true;
+        }
+        return false;
+    }
+
+    void ClearCustomFields() {
+        this->testCustomFields.clear();
+    }
 };
+
+static PostgreSQLEventListener* pgEventListener = nullptr;
 
 class PostgreSQLEnvironment : public ::testing::Environment {
 public:
@@ -599,7 +636,10 @@ public:
     void SetUp() override {
         SAY_HELLO;
         if (std::getenv(PGQL_ENV_SESS_NAME) != nullptr && std::getenv(PGQL_ENV_CONN_NAME) != nullptr) {
-            ::testing::UnitTest::GetInstance()->listeners().Append(new PostgreSQLEventListener());
+            if (pgEventListener == nullptr) {
+                pgEventListener = new PostgreSQLEventListener();
+                ::testing::UnitTest::GetInstance()->listeners().Append(pgEventListener);
+            }
         }
     }
     void TearDown() override {
@@ -611,11 +651,18 @@ public:
     ::testing::AddGlobalTestEnvironment(new PostgreSQLEnvironment());
 #endif
 
+/* This structure is for internal usage, don't need to move it to the header */
+struct PostgreSQLCustomData {
+    std::map<std::string, std::string> customFields;
+};
+
 PostgreSQLHandler::PostgreSQLHandler() {
     std::cout << "PostgreSQLHandler Started\n";
 
     ::testing::Test* gTest = nullptr;
     TestsCommon* tcTest = nullptr;
+
+    this->customData = new PostgreSQLCustomData();
 
     try {
         gTest = dynamic_cast<::testing::Test*>(this);
@@ -661,7 +708,51 @@ PostgreSQLHandler::~PostgreSQLHandler() {
             std::cout << "Success!\n";
     }
 
+    if (this->customData) {
+        delete this->customData;
+        this->customData = nullptr;
+    }
+
     std::cout << "PostgreSQLHandler Finished\n";
+}
+
+bool PostgreSQLHandler::SetCustomField(const std::string fieldName,
+                                       const std::string fieldValue,
+                                       const bool rewrite) {
+    if (pgEventListener) {
+        if (!pgEventListener->SetCustomField(fieldName, fieldValue, rewrite))
+            return false;
+    }
+    auto field = this->customData->customFields.find(fieldName);
+    if (rewrite || field != this->customData->customFields.end()) {
+        this->customData->customFields[fieldName] = fieldValue;
+        return true;
+    }
+    return false;
+}
+
+std::string PostgreSQLHandler::GetCustomField(const std::string fieldName,
+                                              const std::string defaultValue) const {
+    if (pgEventListener) {
+        return pgEventListener->GetCustomField(fieldName, defaultValue);
+    }
+    auto field = this->customData->customFields.find(fieldName);
+    if (field != this->customData->customFields.end()) {
+        return field->second;
+    }
+    return defaultValue;
+}
+
+bool PostgreSQLHandler::RemoveCustomField(const std::string fieldName) {
+    if (pgEventListener) {
+        pgEventListener->RemoveCustomField(fieldName);
+    }
+    auto field = this->customData->customFields.find(fieldName);
+    if (field != this->customData->customFields.end()) {
+        this->customData->customFields.erase(field);
+        return true;
+    }
+    return false;
 }
 
 }  // namespace CommonTestUtils

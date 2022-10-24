@@ -238,6 +238,10 @@ void ReadIRTest::SetUp() {
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
         IE_THROW() << "Hange happens";
     }
+#ifdef ENABLE_CONFORMANCE_PGQL
+    this->SetCustomField("targetDevice", this->targetDevice);
+    //this->SetCustomField("config", this->configuration);
+#endif
 }
 /*
 void ReadIRBase::GenerateInputs() {
