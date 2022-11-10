@@ -98,13 +98,36 @@ std::string TestsCommon::GetTestName() const {
     PostgreSQL Handler class members
 */
 #ifdef PGQL_DEBUG
-#    define SAY_HELLO std::cout << "Hi folks, " << ##__FUNCTION__ << std::endl;
+#    define SAY_HELLO std::cout << "Hi folks, " << __FUNCTION__ << std::endl;
 #else
 #    define SAY_HELLO \
         {}
 #endif
 
 #ifdef ENABLE_CONFORMANCE_PGQL
+/* This manager is using for a making correct removal of PGresult object.
+shared/unique_ptr cannot be used due to incomplete type of PGresult.
+It is minimal implementatio which is compatible with shared/uinque_ptr
+interface usage (reset, get) */
+class PGresultHolder {
+    PGresult* _ptr;
+
+public:
+    PGresultHolder() : _ptr(nullptr) {}
+    PGresultHolder(PGresult* ptr) : _ptr(ptr) {}
+    void reset(PGresult* ptr) {
+        _ptr = ptr;
+    }
+    PGresult* get() {
+        return _ptr;
+    }
+    ~PGresultHolder() {
+        if (!_ptr)
+            return;
+        PQclear(_ptr);
+    }
+};
+
 /*
     This class implements singleton which operates with a connection to PostgreSQL server.
 */
@@ -117,31 +140,21 @@ class PostgreSQLConnection {
     PostgreSQLConnection(const PostgreSQLConnection&) = delete;
     PostgreSQLConnection& operator=(const PostgreSQLConnection&) = delete;
 
-    /* This destructor is using for a making correct removal of PGresult object */
-    class PGresultDeleter {
-    public:
-        void operator()(PGresult* ptr) {
-            if (!ptr)
-                return;
-            PQclear(ptr);
-        }
-    };
-
 public:
     bool isConnected;
 
     static PostgreSQLConnection& GetInstance(void);
     bool Initialize();
-    /* Queries a server. Result will be returned as self-desctructable pointer. But application should check result pointer
-    isn't a nullptr. */
-    std::shared_ptr<PGresult> Query(const char* query) {
+    /* Queries a server. Result will be returned as self-desctructable pointer. But application should check result
+    pointer isn't a nullptr. */
+    PGresultHolder Query(const char* query) {
         if (!isConnected)
-            return std::shared_ptr<PGresult>(nullptr, PGresultDeleter{});
-        auto result = std::shared_ptr<PGresult>(PQexec(this->activeConnection, query), PGresultDeleter{});
-        //Connection could be closed by a timeout, we may try to reconnect once.
-        //We don't reconnect on each call because it may make testing significantly slow in
-        //case of connection issues. Better to finish testing with incomplete results and
-        //free a machine. Otherwise we will lose all results.
+            return PGresultHolder();
+        PGresultHolder result = PGresultHolder(PQexec(this->activeConnection, query));
+        // Connection could be closed by a timeout, we may try to reconnect once.
+        // We don't reconnect on each call because it may make testing significantly slow in
+        // case of connection issues. Better to finish testing with incomplete results and
+        // free a machine. Otherwise we will lose all results.
         if (result.get() == nullptr) {
             TryReconnect();
             // If reconnection attempt was successfull - let's try to set new query
@@ -244,7 +257,6 @@ bool PostgreSQLConnection::Initialize() {
     - String escape isn't applied for all fields (PoC limitation)
 */
 class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
-
     const char* session_id = nullptr;
     bool isPostgresEnabled = false;
 
