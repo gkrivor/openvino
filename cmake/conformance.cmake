@@ -94,6 +94,8 @@ macro(libpq_build_linux)
     endif() #NOT EXISTS libpq.so
 endmacro()
 
+ie_option(ENABLE_CONFORMANCE_PGQL "Enables support of PostgreSQL-based reporting from test tools" OFF)
+
 if(ENABLE_TESTS)
     message(STATUS "")
     message(STATUS "Additional test features:")
