@@ -13,7 +13,8 @@
 #include <pugixml.hpp>
 #include <sstream>
 
-//#define PGQL_DYNAMIC_LOAD
+/// \brief Enables dynamic load of libpq module
+#define PGQL_DYNAMIC_LOAD
 /// \brief Enables extended debug messages to the stderr
 #define PGQL_DEBUG
 //#undef PGQL_DEBUG
@@ -21,7 +22,68 @@ static const char* PGQL_ENV_CONN_NAME = "OV_POSTGRES_CONN";    // Environment va
 static const char* PGQL_ENV_SESS_NAME = "OV_TEST_SESSION_ID";  // Environment variable identifies current session
 
 #ifndef PGQL_DYNAMIC_LOAD
-#include "libpq-fe.h"
+#    include "libpq-fe.h"
+#else
+#    ifdef _WIN32
+#        include <Windows.h>
+#    else
+#        include <dlfcn.h>
+typedef void* HMODULE;
+#    endif
+typedef enum {
+    CONNECTION_OK,
+    CONNECTION_BAD,
+    CONNECTION_STARTED,
+    CONNECTION_MADE,
+    CONNECTION_AWAITING_RESPONSE,
+    CONNECTION_AUTH_OK,
+    CONNECTION_SETENV,
+    CONNECTION_SSL_STARTUP,
+    CONNECTION_NEEDED,
+    CONNECTION_CHECK_WRITABLE,
+    CONNECTION_CONSUME,
+    CONNECTION_GSS_STARTUP,
+    CONNECTION_CHECK_TARGET,
+    CONNECTION_CHECK_STANDBY
+} ConnStatusType;
+
+typedef enum {
+    PGRES_EMPTY_QUERY = 0,
+    PGRES_COMMAND_OK,
+    PGRES_TUPLES_OK,
+    PGRES_COPY_OUT,
+    PGRES_COPY_IN,
+    PGRES_BAD_RESPONSE,
+    PGRES_NONFATAL_ERROR,
+    PGRES_FATAL_ERROR,
+    PGRES_COPY_BOTH,
+    PGRES_SINGLE_TUPLE,
+    PGRES_PIPELINE_SYNC,
+    PGRES_PIPELINE_ABORTED
+} ExecStatusType;
+
+struct PGconn;
+struct PGresult;
+
+typedef PGconn* (*fnPQconnectdb)(const char* conninfo);
+typedef ConnStatusType (*fnPQstatus)(const PGconn* conn);
+typedef size_t (*fnPQescapeStringConn)(PGconn* conn, char* to, const char* from, size_t length, int* error);
+typedef void (*fnPQfinish)(PGconn* conn);
+
+typedef PGresult* (*fnPQexec)(PGconn* conn, const char* query);
+typedef ExecStatusType (*fnPQresultStatus)(const PGresult* res);
+typedef char* (*fnPQgetvalue)(const PGresult* res, int tup_num, int field_num);
+typedef void (*fnPQclear)(PGresult* res);
+
+static fnPQconnectdb PQconnectdb;
+static fnPQescapeStringConn PQescapeStringConn;
+static fnPQstatus PQstatus;
+static fnPQfinish PQfinish;
+
+static fnPQexec PQexec;
+static fnPQresultStatus PQresultStatus;
+static fnPQgetvalue PQgetvalue;
+static fnPQclear PQclear;
 #endif
 
 namespace CommonTestUtils {
@@ -100,6 +162,9 @@ public:
     This class implements singleton which operates with a connection to PostgreSQL server.
 */
 class PostgreSQLConnection {
+#ifdef PGQL_DYNAMIC_LOAD
+    std::shared_ptr<HMODULE> modLibPQ;
+#endif
     PGconn* activeConnection;
 
     PostgreSQLConnection() : activeConnection(nullptr), isConnected(false) {}
@@ -111,7 +176,7 @@ class PostgreSQLConnection {
 public:
     bool isConnected;
 
-    static PostgreSQLConnection& GetInstance(void);
+    static std::shared_ptr<PostgreSQLConnection> GetInstance(void);
     bool Initialize();
     /* Queries a server. Result will be returned as self-desctructable pointer. But application should check result
     pointer isn't a nullptr. */
@@ -154,10 +219,15 @@ public:
         return this->activeConnection;
     }
     ~PostgreSQLConnection();
+
+    friend std::unique_ptr<PostgreSQLConnection>;
 };
 
-PostgreSQLConnection& PostgreSQLConnection::GetInstance(void) {
-    static PostgreSQLConnection connection;
+static std::shared_ptr<PostgreSQLConnection> connection(nullptr);
+std::shared_ptr<PostgreSQLConnection> PostgreSQLConnection::GetInstance(void) {
+    if (connection.get() == nullptr) {
+        connection.swap(std::shared_ptr<PostgreSQLConnection>(new PostgreSQLConnection()));
+    }
     return connection;
 }
 
@@ -179,6 +249,57 @@ bool PostgreSQLConnection::Initialize() {
         std::cerr << "PostgreSQL connection already established." << std::endl;
         return true;
     }
+
+#ifdef PGQL_DYNAMIC_LOAD
+
+#    ifdef _WIN32
+    modLibPQ = std::shared_ptr<HMODULE>(new HMODULE(LoadLibrary("libpq.dll")), [](HMODULE* ptr) {
+        std::cerr << "Freeing libPQ.dll handle" << std::endl;
+        if (ptr != nullptr) {
+            FreeLibrary(*ptr);
+        }
+    });
+#    else
+    modLibPQ = std::shared_ptr<HMODULE>(new HMODULE(dlopen("libpq.so", RTLD_LAZY)), [](HMODULE* ptr) {
+        std::cerr << "Freeing libPQ.so handle" << std::endl;
+        if (ptr != nullptr) {
+            dlclose(*ptr);
+        }
+    });
+    modLibPQ.swap(std::make_shared<HMODULE>());
+#    endif
+    if (*modLibPQ == (HMODULE)0) {
+        std::cerr << "Cannot load PostgreSQL client module libPQ, reporting is unavailable" << std::endl;
+        return false;
+    } else {
+        std::cerr << "PostgreSQL cliend module libPQ has been loaded" << std::endl;
+    }
+
+#    ifdef _WIN32
+#        define GETPROC(name)                                                                   \
+            name = (fn##name)GetProcAddress(*modLibPQ, #name);                                  \
+            if (name == nullptr) {                                                              \
+                std::cerr << "Couldn't load procedure " << #name << " from libPQ" << std::endl; \
+                return false;                                                                   \
+            }
+#    else
+#        define GETPROC(name)                                                                \
+            name = (fn##name)dlsym(*modLibPQ, #name);                                        \
+            if (name == nullptr) {                                                           \
+                std::cerr << "Couldn't load symbol " << #name << " from libPQ" << std::endl; \
+                return false;                                                                \
+            }
+#    endif
+
+    GETPROC(PQconnectdb);
+    GETPROC(PQstatus);
+    GETPROC(PQescapeStringConn);
+    GETPROC(PQfinish);
+    GETPROC(PQexec);
+    GETPROC(PQresultStatus);
+    GETPROC(PQgetvalue);
+    GETPROC(PQclear);
+#endif
 
     const char* envConnString = nullptr;
     envConnString = std::getenv(PGQL_ENV_CONN_NAME);
@@ -226,6 +347,8 @@ bool PostgreSQLConnection::Initialize() {
     - String escape isn't applied for all fields (PoC limitation)
 */
 class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
+    std::shared_ptr<PostgreSQLConnection> connectionKeeper;
+
     const char* session_id = nullptr;
     bool isPostgresEnabled = false;
 
@@ -303,8 +426,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 #ifdef PGQL_DEBUG
         std::cerr << sstr.str() << std::endl;
 #endif
-        PostgreSQLConnection& conn = PostgreSQLConnection::GetInstance();
-        auto pgresult = conn.Query(sstr.str().c_str());
+        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         ExecStatusType execStatus = PQresultStatus(pgresult.get());
         if (execStatus != PGRES_TUPLES_OK) {
@@ -322,7 +444,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 #ifdef PGQL_DEBUG
         std::cerr << sstr.str() << std::endl;
 #endif
-        pgresult = conn.Query(sstr.str().c_str());
+        pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         execStatus = PQresultStatus(pgresult.get());
         if (execStatus != PGRES_TUPLES_OK) {
@@ -344,8 +466,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     void OnTestStart(const ::testing::TestInfo& test_info) override {
         if (!this->isPostgresEnabled)
             return;
-
-        PostgreSQLConnection& conn = PostgreSQLConnection::GetInstance();
 
         std::stringstream sstr;
         sstr << "SELECT GET_TEST_NAME(" << this->testSuiteNameId << ", '" << test_info.name() << "'";
@@ -393,7 +513,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                 escapedDescription[0] = 0;     //
                 int errCode = 0;
                 size_t writtenSize = 0;
-                writtenSize = PQescapeStringConn(conn.GetConnection(),
+                writtenSize = PQescapeStringConn((*connectionKeeper).GetConnection(),
                                                  escapedDescription.data(),
                                                  testDescription.c_str(),
                                                  testDescription.length(),
@@ -411,7 +531,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 #ifdef PGQL_DEBUG
         std::cerr << sstr.str() << std::endl;
 #endif
-        auto pgresult = conn.Query(sstr.str().c_str());
+        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         ExecStatusType execStatus = PQresultStatus(pgresult.get());
         if (execStatus != PGRES_TUPLES_OK) {
@@ -429,7 +549,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 #ifdef PGQL_DEBUG
         std::cerr << sstr.str() << std::endl;
 #endif
-        pgresult = conn.Query(sstr.str().c_str());
+        pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         execStatus = PQresultStatus(pgresult.get());
         if (execStatus != PGRES_TUPLES_OK) {
@@ -462,8 +582,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 #ifdef PGQL_DEBUG
         std::cerr << sstr.str() << std::endl;
 #endif
-        PostgreSQLConnection& conn = PostgreSQLConnection::GetInstance();
-        auto pgresult = conn.Query(sstr.str().c_str());
+        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         ExecStatusType execStatus = PQresultStatus(pgresult.get());
         if (execStatus != PGRES_COMMAND_OK) {
@@ -481,8 +600,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 #ifdef PGQL_DEBUG
         std::cerr << sstr.str() << std::endl;
 #endif
-        PostgreSQLConnection& conn = PostgreSQLConnection::GetInstance();
-        auto pgresult = conn.Query(sstr.str().c_str());
+        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         ExecStatusType execStatus = PQresultStatus(pgresult.get());
         if (execStatus != PGRES_COMMAND_OK) {
@@ -496,23 +614,23 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             OnTestSuiteEnd(test_case);
     }
 #endif  //  GTEST_REMOVE_LEGACY_TEST_CASEAPI_
-        /*
-            void OnEnvironmentsTearDownStart(const ::testing::UnitTest& unit_test) override {
-                SAY_HELLO;
-            }
-            void OnEnvironmentsTearDownEnd(const ::testing::UnitTest& unit_test) override {
-                SAY_HELLO;
-            }
-            void OnTestIterationEnd(const ::testing::UnitTest& unit_test, int iteration) override {
-                std::stringstream sstr;
-                sstr << "UPDATE test_iterations WHERE id=... SET finished=\"finishdate\")";
-        #ifdef PGQL_DEBUG
-                std::cerr << sstr.str() << std::endl;
-        #endif
-            }
-            void OnTestProgramEnd(const ::testing::UnitTest& unit_test) override {
-            }
-        */
+    /*
+        void OnEnvironmentsTearDownStart(const ::testing::UnitTest& unit_test) override {
+            SAY_HELLO;
+        }
+        void OnEnvironmentsTearDownEnd(const ::testing::UnitTest& unit_test) override {
+            SAY_HELLO;
+        }
+        void OnTestIterationEnd(const ::testing::UnitTest& unit_test, int iteration) override {
+            std::stringstream sstr;
+            sstr << "UPDATE test_iterations WHERE id=... SET finished=\"finishdate\")";
+    #ifdef PGQL_DEBUG
+            std::cerr << sstr.str() << std::endl;
+    #endif
+        }
+        void OnTestProgramEnd(const ::testing::UnitTest& unit_test) override {
+        }
+    */
     /* Do nothing here. If you need to do anything on creation - it should be fully undersandable. */
     PostgreSQLEventListener() {
         this->session_id = std::getenv(PGQL_ENV_SESS_NAME);
@@ -520,8 +638,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             isPostgresEnabled = false;
 
             std::cerr << "Test session ID has been found" << std::endl;
-            PostgreSQLConnection& conn = PostgreSQLConnection::GetInstance();
-            bool connInitResult = conn.Initialize();
+            connectionKeeper = PostgreSQLConnection::GetInstance();
+            bool connInitResult = (*connectionKeeper).Initialize();
 
             if (!connInitResult)
                 return;
@@ -531,7 +649,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 #ifdef PGQL_DEBUG
             std::cerr << sstr.str() << std::endl;
 #endif
-            auto pgresult = conn.Query(sstr.str().c_str());
+            auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
             CHECK_PGQUERY(pgresult);
 
             ExecStatusType execStatus = PQresultStatus(pgresult.get());
@@ -547,6 +665,9 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                           << std::endl;
                 isPostgresEnabled = false;
             }
+            if (isPostgresEnabled) {
+                connectionKeeper = connection;
+            }
         } else {
             std::cerr << "Test session ID hasn't been found, continues without database reporting" << std::endl;
         }
@@ -560,8 +681,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 #ifdef PGQL_DEBUG
         std::cerr << sstr.str() << std::endl;
 #endif
-        PostgreSQLConnection& conn = PostgreSQLConnection::GetInstance();
-        auto pgresult = conn.Query(sstr.str().c_str());
+        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         ExecStatusType execStatus = PQresultStatus(pgresult.get());
         if (execStatus != PGRES_COMMAND_OK) {
             std::cerr << "Cannot update session finish info, error: " << static_cast<uint64_t>(execStatus) << std::endl;
@@ -637,10 +757,7 @@ public:
     std::map<std::string, std::string> customFields;
 };
 
-PostgreSQLLink::PostgreSQLLink()
-    : parentObject(nullptr),
-      customData(nullptr)
-{
+PostgreSQLLink::PostgreSQLLink() : parentObject(nullptr), customData(nullptr) {
     this->parentObject = nullptr;
     std::cout << "PostgreSQLLink Started\n";
     this->customData = new PostgreSQLCustomData();
@@ -657,9 +774,7 @@ PostgreSQLLink::~PostgreSQLLink() {
     std::cout << "PostgreSQLLink Finished\n";
 }
 
-bool PostgreSQLLink::SetCustomField(const std::string fieldName,
-                                          const std::string fieldValue,
-                                          const bool rewrite) {
+bool PostgreSQLLink::SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite) {
     if (pgEventListener) {
         if (!pgEventListener->SetCustomField(fieldName, fieldValue, rewrite))
             return false;
