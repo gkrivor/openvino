@@ -3,14 +3,24 @@
 #
 
 function(add_common_utils ADD_TARGET_NAME)
+    list(APPEND TARGET_EXCLUDED_SOURCE_PATHS
+        ${CMAKE_CURRENT_SOURCE_DIR}/gtest
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests
+    )
+    if(NOT ENABLE_CONFORMANCE_PGQL)
+        list(APPEND TARGET_EXCLUDED_SOURCE_PATHS
+            ${CMAKE_CURRENT_SOURCE_DIR}/postgres_link.hpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/postgres_link.cpp
+        )
+    endif()
+
     # create target
     addIeTarget(
             NAME ${ADD_TARGET_NAME}
             TYPE STATIC
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
             EXCLUDED_SOURCE_PATHS
-                ${CMAKE_CURRENT_SOURCE_DIR}/gtest
-                ${CMAKE_CURRENT_SOURCE_DIR}/tests
+                ${TARGET_EXCLUDED_SOURCE_PATHS}
             ADD_CPPLINT
             DEVELOPER_PACKAGE
                 tests

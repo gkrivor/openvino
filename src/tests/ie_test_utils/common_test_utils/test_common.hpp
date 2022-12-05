@@ -7,40 +7,32 @@
 #include <gtest/gtest.h>
 
 #include <string>
+
 #include "test_assertions.hpp"
-#ifdef ENABLE_CONFORMANCE_PGQL
-#include <map>
-#endif
 
 namespace CommonTestUtils {
 #ifdef ENABLE_CONFORMANCE_PGQL
-struct PostgreSQLCustomData;
-class PostgreSQLHandler : virtual public ::testing::Test {
-    PostgreSQLCustomData* customData;
-
-protected:
-    PostgreSQLHandler();
-    ~PostgreSQLHandler() override;
-
-    bool SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite = true);
-    std::string GetCustomField(const std::string fieldName, const std::string defaultValue = "") const;
-    bool RemoveCustomField(const std::string fieldName);
-};
+class PostgreSQLLink;
 #endif
 
-class TestsCommon :
-#ifndef ENABLE_CONFORMANCE_PGQL
-    virtual public ::testing::Test
-#else
-    virtual public PostgreSQLHandler
+class TestsCommon : virtual public ::testing::Test {
+#ifdef ENABLE_CONFORMANCE_PGQL
+    PostgreSQLLink* PGLink;
 #endif
-{
 protected:
     TestsCommon();
     ~TestsCommon() override;
 
     static std::string GetTimestamp();
     std::string GetTestName() const;
+
+#ifdef ENABLE_CONFORMANCE_PGQL
+public:
+    PostgreSQLLink* GetPGLink() {
+        assert(this->PGLink != nullptr);
+        return this->PGLink;
+    }
+#endif
 };
 
 }  // namespace CommonTestUtils
