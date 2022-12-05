@@ -21,6 +21,7 @@ class PostgreSQLLink {
     /// \brief customData contains internal object state. It mustn't be accessible
     ///        from outside.
     PostgreSQLCustomData* customData;
+
 public:
     /// \brief Simple constructor
     PostgreSQLLink();
