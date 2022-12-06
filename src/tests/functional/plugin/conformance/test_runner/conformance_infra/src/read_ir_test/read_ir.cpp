@@ -19,6 +19,8 @@
 
 #include "read_ir_test/read_ir.hpp"
 
+#include "common_test_utils/postgres_link.hpp"
+
 #include <setjmp.h>
 
 namespace ov {
@@ -221,7 +223,7 @@ void ReadIRTest::SetUp() {
         GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
     }
 #ifdef ENABLE_CONFORMANCE_PGQL
-    this->SetCustomField("targetDevice", this->targetDevice);
+    this->GetPGLink()->SetCustomField("targetDevice", this->targetDevice);
     //this->SetCustomField("config", this->configuration);
 #endif
     init_input_shapes(inputShapes);
