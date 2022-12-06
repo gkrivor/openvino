@@ -174,6 +174,8 @@ ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests"
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 ie_dependent_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON "ENABLE_TESTS;NOT CMAKE_CROSSCOMPILING" OFF)
 
+ie_option(ENABLE_CONFORMANCE_PGQL "Enables support of PostgreSQL-based reporting from test tools" OFF)
+
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
 else()
