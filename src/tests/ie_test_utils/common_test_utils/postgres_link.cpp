@@ -91,17 +91,10 @@ namespace CommonTestUtils {
 /*
     PostgreSQL Handler class members
 */
-#ifdef PGQL_DEBUG
-#    define SAY_HELLO std::cout << "Hi folks, " << __FUNCTION__ << std::endl;
-#else
-#    define SAY_HELLO \
-        {}
-#endif
-
-/* This manager is using for a making correct removal of PGresult object.
-shared/unique_ptr cannot be used due to incomplete type of PGresult.
-It is minimal implementatio which is compatible with shared/uinque_ptr
-interface usage (reset, get) */
+/// \brief This manager is using for a making correct removal of PGresult object.
+///        shared/unique_ptr cannot be used due to incomplete type of PGresult.
+///        It is minimal implementatio which is compatible with shared/uinque_ptr
+///        interface usage (reset, get)
 class PGresultHolder {
     PGresult* _ptr;
     volatile uint32_t* refCounter;
@@ -158,9 +151,7 @@ public:
     }
 };
 
-/*
-    This class implements singleton which operates with a connection to PostgreSQL server.
-*/
+/// \briaf This class implements singleton which operates with a connection to PostgreSQL server.
 class PostgreSQLConnection {
 #ifdef PGQL_DYNAMIC_LOAD
     std::shared_ptr<HMODULE> modLibPQ;
@@ -169,7 +160,7 @@ class PostgreSQLConnection {
 
     PostgreSQLConnection() : activeConnection(nullptr), isConnected(false) {}
 
-    /* Prohobit creation outsize of class, need to make a Singleton */
+    /// \brief Prohobit creation outsize of class, need to make a Singleton
     PostgreSQLConnection(const PostgreSQLConnection&) = delete;
     PostgreSQLConnection& operator=(const PostgreSQLConnection&) = delete;
 
@@ -178,8 +169,11 @@ public:
 
     static std::shared_ptr<PostgreSQLConnection> GetInstance(void);
     bool Initialize();
-    /* Queries a server. Result will be returned as self-desctructable pointer. But application should check result
-    pointer isn't a nullptr. */
+    /// \brief Queries a server. Result will be returned as self-desctructable pointer. But application should check
+    /// result
+    ///        pointer isn't a nullptr.
+    /// \param[in] query SQL query to a server
+    /// \returns Object which keep pointer on received PGresult. It contains nullptr in case of any error.
     PGresultHolder Query(const char* query) {
         if (!isConnected)
             return PGresultHolder();
@@ -239,11 +233,9 @@ PostgreSQLConnection::~PostgreSQLConnection() {
     }
 }
 
-/*
-    Initialization of exact object. Uses environment variable PGQL_ENV_CONN_NAME for making a connection.
-    Returns false in case of failure or absence of ENV-variable.
-    Returns true in case of connection has been succesfully established.
-*/
+/// \brief Initialization of exact object. Uses environment variable PGQL_ENV_CONN_NAME for making a connection.
+/// \returns Returns false in case of failure or absence of ENV-variable.
+///          Returns true in case of connection has been succesfully established.
 bool PostgreSQLConnection::Initialize() {
     if (this->activeConnection != nullptr) {
         std::cerr << "PostgreSQL connection already established." << std::endl;
@@ -335,17 +327,11 @@ bool PostgreSQLConnection::Initialize() {
     }
 
 /*
-    This is a workaround to place all data in one cpp file.
-
-    In production version it has to be separated for heeader and source
-    and this part should be removed;
-
-*/
-
-/*
     Known issues:
     - String escape isn't applied for all fields (PoC limitation)
 */
+/// \brief Class which handles gtest keypoints and send data to PostgreSQL database.
+///        May be separated for several source files in case it'll become to huge.
 class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     std::shared_ptr<PostgreSQLConnection> connectionKeeper;
 
@@ -360,6 +346,18 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     uint64_t testSuiteId = 0;
     uint64_t testId = 0;
     std::map<std::string, std::string> testCustomFields;
+
+    // Unused event handlers, kept here for possible use in the future
+    /*
+    void OnTestProgramStart(const ::testing::UnitTest& unit_test) override {}
+    void OnTestIterationStart(const ::testing::UnitTest& unit_test, int iteration) override {}
+    void OnEnvironmentsSetUpStart(const ::testing::UnitTest& unit_test) override {}
+    void OnEnvironmentsSetUpEnd(const ::testing::UnitTest& unit_test) override {}
+    void OnEnvironmentsTearDownStart(const ::testing::UnitTest& unit_test) override {}
+    void OnEnvironmentsTearDownEnd(const ::testing::UnitTest& unit_test) override {}
+    void OnTestIterationEnd(const ::testing::UnitTest& unit_test, int iteration) override {}
+    void OnTestProgramEnd(const ::testing::UnitTest& unit_test) override {}
+    */
 
     /*
     This method is used for parsing serialized value_param string.
@@ -398,25 +396,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         }
         return results;
     }
-    /*
-        void OnTestProgramStart(const ::testing::UnitTest& unit_test) override {
-        }
-        void OnTestIterationStart(const ::testing::UnitTest& unit_test, int iteration) override {
-            std::stringstream sstr;
-            sstr << "INSERT INTO test_iterations (name, iteration) VALUES ('" << unit_test.current_test_suite()->name()
-    << "', "
-                 << iteration << ")";
-    #ifdef PGQL_DEBUG
-            std::cerr << sstr.str() << std::endl;
-    #endif
-        }
-        void OnEnvironmentsSetUpStart(const ::testing::UnitTest& unit_test) override {
-            SAY_HELLO;
-        }
-        void OnEnvironmentsSetUpEnd(const ::testing::UnitTest& unit_test) override {
-            SAY_HELLO;
-        }
-    */
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
         if (!this->isPostgresEnabled)
             return;
@@ -614,23 +593,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             OnTestSuiteEnd(test_case);
     }
 #endif  //  GTEST_REMOVE_LEGACY_TEST_CASEAPI_
-    /*
-        void OnEnvironmentsTearDownStart(const ::testing::UnitTest& unit_test) override {
-            SAY_HELLO;
-        }
-        void OnEnvironmentsTearDownEnd(const ::testing::UnitTest& unit_test) override {
-            SAY_HELLO;
-        }
-        void OnTestIterationEnd(const ::testing::UnitTest& unit_test, int iteration) override {
-            std::stringstream sstr;
-            sstr << "UPDATE test_iterations WHERE id=... SET finished=\"finishdate\")";
-    #ifdef PGQL_DEBUG
-            std::cerr << sstr.str() << std::endl;
-    #endif
-        }
-        void OnTestProgramEnd(const ::testing::UnitTest& unit_test) override {
-        }
-    */
+
     /* Do nothing here. If you need to do anything on creation - it should be fully undersandable. */
     PostgreSQLEventListener() {
         this->session_id = std::getenv(PGQL_ENV_SESS_NAME);
@@ -725,18 +688,20 @@ public:
     }
 };
 
+/// \brief Global variable (scoped only to this file) which contains pointer to PostgreSQLEventListener
+///        Might be replaced by a bool, but left as is for possible future use.
 static PostgreSQLEventListener* pgEventListener = nullptr;
 
+/// \brief Class is used for registering environment handler in gtest. It prepares in-time set up
+///        for registering PostgreSQLEventListener
 class PostgreSQLEnvironment : public ::testing::Environment {
 public:
     PostgreSQLEnvironment() {
-        SAY_HELLO;
+        // Expected only one instance of environment handler. Otherwise it looks like link issue.
+        assert(PostgreSQLEnvironment_Reg == nullptr);
     }
-    ~PostgreSQLEnvironment() {
-        SAY_HELLO;
-    }
+    ~PostgreSQLEnvironment() {}
     void SetUp() override {
-        SAY_HELLO;
         if (std::getenv(PGQL_ENV_SESS_NAME) != nullptr && std::getenv(PGQL_ENV_CONN_NAME) != nullptr) {
             if (pgEventListener == nullptr) {
                 pgEventListener = new PostgreSQLEventListener();
@@ -745,13 +710,16 @@ public:
         }
     }
     void TearDown() override {
-        SAY_HELLO;
+        // Don't see any reason to do additional tear down
     }
 };
 
+/// \brief Global variable which stores a pointer to active instance (only one is expected) of
+/// PostgreSQLEnvironment.
 ::testing::Environment* PostgreSQLEnvironment_Reg = ::testing::AddGlobalTestEnvironment(new PostgreSQLEnvironment());
 
-/* This structure is for internal usage, don't need to move it to the header */
+/// \brief This class is for internal usage, don't need to move it to the header. It holds an internal state of
+///        PostgreSQLLink instance. Introduced to simplify header.
 class PostgreSQLCustomData {
 public:
     std::map<std::string, std::string> customFields;
