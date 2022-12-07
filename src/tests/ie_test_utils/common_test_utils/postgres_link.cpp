@@ -344,10 +344,98 @@ bool PostgreSQLConnection::Initialize() {
     return true;
 }
 
+/// \brief This method is used for parsing serialized value_param string.
+///        Known limitations:
+///        It doesn't read values in inner tuples/arrays/etc.
+static std::vector<std::string> ParseValueParam(std::string text) {
+    std::vector<std::string> results;
+    size_t beginning = 0;
+    size_t chrPos = 0;
+    char pairingChar = 0;
+    for (auto it = text.begin(); it != text.end(); ++it, ++chrPos) {
+        if (pairingChar == 0) {  // Looking for opening char
+            switch (*it) {
+            case '"':
+            case '\'':
+                pairingChar = *it;
+                break;
+            case '{':
+                pairingChar = '}';
+                break;
+            }
+            beginning = chrPos + 1;
+        } else if (*it != pairingChar) {  // Skip while don't face with paring char
+            continue;
+        } else {
+            if (chrPos < 3 || (text[chrPos - 1] != '\\' && text[chrPos - 2] != '\\')) {
+                size_t substrLength = chrPos - beginning;
+                if (substrLength > 0 && (beginning + substrLength) < text.length()) {
+                    results.push_back(text.substr(beginning, chrPos - beginning));
+                }
+                pairingChar = 0;
+            }
+        }
+    }
+    return results;
+}
+
+/// \brief Function returns executable name of current application.
+/// \returs File name as a std::string
+static std::string GetExecutableName(void) {
+#ifdef _WIN32
+    char cFilePath[MAX_PATH] = {};
+    GetModuleFileName(nullptr, cFilePath, MAX_PATH);
+    std::string filePath(cFilePath);
+#else
+    std::string filePath;
+    std::ifstream("/proc/self/comm") >> filePath;
+    return filePath;
+#endif
+    return filePath.substr(filePath.find_last_of("/\\") + 1);
+}
+
+/// \brief Cross-platform implementation of getting host name
+/// \returns String with host name or "NOT_FOUND" in case of error
+static std::string GetHostname(void) {
+    std::string hostName = "NOT_FOUND";
+#ifdef _WIN32
+    DWORD szHostName = MAX_COMPUTERNAME_LENGTH;
+    char cHostName[MAX_COMPUTERNAME_LENGTH + 1] = {};
+    if (FAILED(GetComputerName(cHostName, &szHostName))) {
+        std::cerr << "Cannot get a host name" << std::endl;
+#else
+    char cHostName[HOST_NAME_MAX];
+    if (gethostname(cHostName, HOST_NAME_MAX)) {
+        std::cerr << "Cannot get a host name" << std::endl;
+#endif
+    } else {
+        hostName = cHostName;
+    }
+    return hostName;
+}
+
+/// \brief Helper for checking PostgreSQL results
 #define CHECK_PGRESULT(var_name, error_message, action) \
     if (var_name.get() == nullptr) {                    \
         std::cerr << error_message << std::endl;        \
         action;                                         \
+    }
+/// \brief Helper for registering ID-retrieval functions
+#define GET_PG_IDENTIFIER(funcDefinition, sqlQuery, varName, fieldName)                  \
+    bool funcDefinition {                                                                \
+        std::stringstream sstr;                                                          \
+                                                                                         \
+        sstr << sqlQuery;                                                                \
+        auto pgresult = connectionKeeper->Query(sstr.str().c_str());                     \
+        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct " #fieldName, return false); \
+                                                                                         \
+        this->varName = std::atoi(PQgetvalue(pgresult.get(), 0, 0));                     \
+        if (this->varName == 0) {                                                        \
+            std::cerr << "Cannot interpret a returned " << #fieldName                    \
+                      << ", value : " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;  \
+            return false;                                                                \
+        }                                                                                \
+        return true;                                                                     \
     }
 
 /*
@@ -386,91 +474,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     void OnTestProgramEnd(const ::testing::UnitTest& unit_test) override {}
     */
 
-    /// \brief This method is used for parsing serialized value_param string.
-    ///        Known limitations:
-    ///        It doesn't read values in inner tuples/arrays/etc.
-    std::vector<std::string> ParseValueParam(std::string text) const {
-        std::vector<std::string> results;
-        size_t beginning = 0;
-        size_t chrPos = 0;
-        char pairingChar = 0;
-        for (auto it = text.begin(); it != text.end(); ++it, ++chrPos) {
-            if (pairingChar == 0) {  // Looking for opening char
-                switch (*it) {
-                case '"':
-                case '\'':
-                    pairingChar = *it;
-                    break;
-                case '{':
-                    pairingChar = '}';
-                    break;
-                }
-                beginning = chrPos + 1;
-            } else if (*it != pairingChar) {  // Skip while don't face with paring char
-                continue;
-            } else {
-                if (chrPos < 3 || (text[chrPos - 1] != '\\' && text[chrPos - 2] != '\\')) {
-                    size_t substrLength = chrPos - beginning;
-                    if (substrLength > 0 && (beginning + substrLength) < text.length()) {
-                        results.push_back(text.substr(beginning, chrPos - beginning));
-                    }
-                    pairingChar = 0;
-                }
-            }
-        }
-        return results;
-    }
-
-    /// \brief Function returns executable name of current application.
-    /// \returs File name as a std::string
-    std::string GetExecutableName(void) const {
-#ifdef _WIN32
-        char cFilePath[MAX_PATH] = {};
-        GetModuleFileName(nullptr, cFilePath, MAX_PATH);
-        std::string filePath(cFilePath);
-#else
-        std::string filePath;
-        std::ifstream("/proc/self/comm") >> filePath;
-        return filePath;
-#endif
-        return filePath.substr(filePath.find_last_of("/\\") + 1);
-    }
-
-    std::string GetHostname(void) const {
-        std::string hostName = "NOT_FOUND";
-#ifdef _WIN32
-        DWORD szHostName = MAX_COMPUTERNAME_LENGTH;
-        char cHostName[MAX_COMPUTERNAME_LENGTH + 1] = {};
-        if (FAILED(GetComputerName(cHostName, &szHostName))) {
-            std::cerr << "Cannot get a host name" << std::endl;
-#else
-        char cHostName[HOST_NAME_MAX];
-        if (gethostname(cHostName, HOST_NAME_MAX)) {
-            std::cerr << "Cannot get a host name" << std::endl;
-#endif
-        } else {
-            hostName = cHostName;
-        }
-        return hostName;
-    }
-
-#define GET_PG_IDENTIFIER(funcDefinition, sqlQuery, varName, fieldName)                  \
-    bool funcDefinition {                                                                \
-        std::stringstream sstr;                                                          \
-                                                                                         \
-        sstr << sqlQuery;                                                                \
-        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());                   \
-        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct " #fieldName, return false); \
-                                                                                         \
-        this->varName = std::atoi(PQgetvalue(pgresult.get(), 0, 0));                     \
-        if (this->varName == 0) {                                                        \
-            std::cerr << "Cannot interpret a returned " << #fieldName                    \
-                      << ", value : " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;  \
-            return false;                                                                \
-        }                                                                                \
-        return true;                                                                     \
-    }
-
     GET_PG_IDENTIFIER(RequestApplicationId(void),
                       "SELECT GET_APPLICATION('" << GetExecutableName() << "')",
                       appId,
@@ -481,6 +484,9 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                       "SELECT GET_TEST_SUITE('" << test_suite_name << "')",
                       testSuiteNameId,
                       sn_id)
+    GET_PG_IDENTIFIER(RequestSuiteId(std::string query), query, testSuiteId, sr_id)
+    GET_PG_IDENTIFIER(RequestTestNameId(std::string query), query, testNameId, tn_id)
+    GET_PG_IDENTIFIER(RequestTestId(std::string query), query, testId, tr_id)
 
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
         if (!this->isPostgresEnabled || !this->sessionId)
@@ -490,18 +496,12 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
 
         std::stringstream sstr;
-
         sstr << "INSERT INTO suite_results (sr_id, session_id, suite_id) VALUES (DEFAULT, " << this->sessionId << ", "
              << this->testSuiteNameId << ") RETURNING sr_id";
-        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct sr_id", return );
-
-        this->testSuiteId = std::atoi(PQgetvalue(pgresult.get(), 0, 0));
-        if (this->testSuiteId == 0) {
-            std::cerr << "Cannot interpret a returned sr_id, value: " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;
+        if (!RequestSuiteId(sstr.str()))
             return;
-        }
     }
+
 //  Legacy API is deprecated but still available
 #ifndef GTEST_REMOVE_LEGACY_TEST_CASEAPI_
     void OnTestCaseStart(const ::testing::TestCase& test_case) override {
@@ -560,7 +560,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                 escapedDescription[0] = 0;     //
                 int errCode = 0;
                 size_t writtenSize = 0;
-                writtenSize = PQescapeStringConn((*connectionKeeper).GetConnection(),
+                writtenSize = PQescapeStringConn(connectionKeeper->GetConnection(),
                                                  escapedDescription.data(),
                                                  testDescription.c_str(),
                                                  testDescription.length(),
@@ -575,26 +575,18 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         }
         sstr << ")";
 
-        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct tn_id", return );
-        this->testNameId = std::atoi(PQgetvalue(pgresult.get(), 0, 0));
-        if (this->testNameId == 0) {
-            std::cerr << "Cannot interpret a returned tn_id, value: " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;
+        if (!RequestTestNameId(sstr.str()))
             return;
-        }
 
         sstr.str("");
         sstr.clear();
         sstr << "INSERT INTO test_results (tr_id, session_id, suite_id, test_id) VALUES (DEFAULT, " << this->sessionId
              << ", " << this->testSuiteId << ", " << this->testNameId << ") RETURNING tr_id";
-        pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct tr_id", return );
-        this->testId = std::atoi(PQgetvalue(pgresult.get(), 0, 0));
-        if (this->testId == 0) {
-            std::cerr << "Cannot interpret a returned tr_id, value: " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;
+
+        if (!RequestTestId(sstr.str()))
             return;
-        }
     }
+
     void OnTestPartResult(const ::testing::TestPartResult& test_part_result) override {
         if (!this->isPostgresEnabled || !this->sessionId || !this->testSuiteNameId || !this->testSuiteId ||
             !this->testNameId || !this->testId)
@@ -602,6 +594,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         //        std::stringstream sstr;
         //        sstr << "INSERT INTO test_starts(part) (name) VALUES (\"partresult\")";
     }
+
     void OnTestEnd(const ::testing::TestInfo& test_info) override {
         if (!this->isPostgresEnabled || !this->sessionId || !this->testSuiteNameId || !this->testSuiteId ||
             !this->testNameId || !this->testId)
@@ -615,10 +608,11 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             testResult = 2;
         sstr << "UPDATE test_results SET finished_at=NOW(), duration=" << test_info.result()->elapsed_time()
              << ", test_result=" << testResult << " WHERE tr_id=" << this->testId;
-        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str(), PGRES_COMMAND_OK);
+        auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
         CHECK_PGRESULT(pgresult, "Cannot update test results", return );
         this->testId = 0;
     }
+
     void OnTestSuiteEnd(const ::testing::TestSuite& test_suite) override {
         if (!this->isPostgresEnabled || !this->sessionId || !this->testSuiteNameId || !this->testSuiteId)
             return;
@@ -626,7 +620,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         std::stringstream sstr;
         sstr << "UPDATE suite_results SET finished_at=NOW(), duration=" << test_suite.elapsed_time()
              << ", suite_result=" << (test_suite.Passed() ? 1 : 0) << " WHERE sr_id=" << this->testSuiteId;
-        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str(), PGRES_COMMAND_OK);
+        auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
         CHECK_PGRESULT(pgresult, "Cannot update test suite results", return );
         this->testSuiteId = 0;
     }
@@ -645,7 +639,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
             std::cerr << "Test session ID has been found" << std::endl;
             connectionKeeper = PostgreSQLConnection::GetInstance();
-            bool connInitResult = (*connectionKeeper).Initialize();
+            bool connInitResult = connectionKeeper->Initialize();
 
             if (!connInitResult)
                 return;
@@ -666,15 +660,17 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             std::cerr << "Test session ID hasn't been found, continues without database reporting" << std::endl;
         }
     }
+
     ~PostgreSQLEventListener() {
         if (!this->isPostgresEnabled || !this->sessionId)
             return;
 
         std::stringstream sstr;
         sstr << "UPDATE sessions SET end_time=NOW() WHERE session_id=" << this->sessionId << " AND end_time<NOW()";
-        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str(), PGRES_COMMAND_OK);
+        auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
         CHECK_PGRESULT(pgresult, "Cannot update session finish info", return );
     }
+
     /* Prohobit creation outsize of class, need to make a Singleton */
     PostgreSQLEventListener(const PostgreSQLEventListener&) = delete;
     PostgreSQLEventListener& operator=(const PostgreSQLEventListener&) = delete;
