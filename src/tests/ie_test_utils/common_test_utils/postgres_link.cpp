@@ -478,10 +478,14 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                       "SELECT GET_APPLICATION('" << GetExecutableName() << "')",
                       appId,
                       app_id)
+    GET_PG_IDENTIFIER(RequestRunId(void),
+                      "SELECT GET_RUN(" << this->testRunId << ", " << this->appId << ", " << this->sessionId << ")",
+                      testRunId,
+                      run_id)
     GET_PG_IDENTIFIER(RequestHostId(void), "SELECT GET_HOST('" << GetHostname() << "')", hostId, host_id)
     GET_PG_IDENTIFIER(RequestSessionId(void), "SELECT GET_SESSION('" << this->session_id << "')", sessionId, session_id)
     GET_PG_IDENTIFIER(RequestSuiteNameId(const char* test_suite_name),
-                      "SELECT GET_TEST_SUITE('" << test_suite_name << "')",
+                      "SELECT GET_TEST_SUITE('" << test_suite_name << "', " << this->appId << ")",
                       testSuiteNameId,
                       sn_id)
     GET_PG_IDENTIFIER(RequestSuiteId(std::string query), query, testSuiteId, sr_id)
@@ -489,7 +493,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     GET_PG_IDENTIFIER(RequestTestId(std::string query), query, testId, tr_id)
 
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
-        if (!this->isPostgresEnabled || !this->sessionId)
+        if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId)
             return;
 
         if (!RequestSuiteNameId(test_suite.name()))
@@ -511,7 +515,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 #endif  //  GTEST_REMOVE_LEGACY_TEST_CASEAPI_
 
     void OnTestStart(const ::testing::TestInfo& test_info) override {
-        if (!this->isPostgresEnabled || !this->sessionId || !this->testSuiteNameId || !this->testSuiteId)
+        if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId || !this->testSuiteNameId ||
+            !this->testSuiteId)
             return;
 
         std::stringstream sstr;
@@ -588,16 +593,16 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     }
 
     void OnTestPartResult(const ::testing::TestPartResult& test_part_result) override {
-        if (!this->isPostgresEnabled || !this->sessionId || !this->testSuiteNameId || !this->testSuiteId ||
-            !this->testNameId || !this->testId)
+        if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId || !this->testSuiteNameId ||
+            !this->testSuiteId || !this->testNameId || !this->testId)
             return;
         //        std::stringstream sstr;
         //        sstr << "INSERT INTO test_starts(part) (name) VALUES (\"partresult\")";
     }
 
     void OnTestEnd(const ::testing::TestInfo& test_info) override {
-        if (!this->isPostgresEnabled || !this->sessionId || !this->testSuiteNameId || !this->testSuiteId ||
-            !this->testNameId || !this->testId)
+        if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId || !this->testSuiteNameId ||
+            !this->testSuiteId || !this->testNameId || !this->testId)
             return;
 
         std::stringstream sstr;
@@ -614,7 +619,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     }
 
     void OnTestSuiteEnd(const ::testing::TestSuite& test_suite) override {
-        if (!this->isPostgresEnabled || !this->sessionId || !this->testSuiteNameId || !this->testSuiteId)
+        if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId || !this->testSuiteNameId ||
+            !this->testSuiteId)
             return;
 
         std::stringstream sstr;
@@ -652,6 +658,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                 isPostgresEnabled &= RequestHostId();
             if (isPostgresEnabled)
                 isPostgresEnabled &= RequestSessionId();
+            if (isPostgresEnabled)
+                isPostgresEnabled &= RequestRunId();
 
             if (isPostgresEnabled) {
                 connectionKeeper = connection;
@@ -662,12 +670,18 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     }
 
     ~PostgreSQLEventListener() {
-        if (!this->isPostgresEnabled || !this->sessionId)
+        if (!this->isPostgresEnabled)
             return;
 
         std::stringstream sstr;
-        sstr << "UPDATE sessions SET end_time=NOW() WHERE session_id=" << this->sessionId << " AND end_time<NOW()";
+        sstr << "UPDATE runs SET end_time=NOW() WHERE run_id=" << this->testRunId << " AND end_time<NOW()";
         auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
+        CHECK_PGRESULT(pgresult, "Cannot update run finish info", return );
+
+        sstr.str("");
+        sstr.clear();
+        sstr << "UPDATE sessions SET end_time=NOW() WHERE session_id=" << this->sessionId << " AND end_time<NOW()";
+        pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
         CHECK_PGRESULT(pgresult, "Cannot update session finish info", return );
     }
 
