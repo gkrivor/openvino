@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <pugixml.hpp>
@@ -20,6 +21,13 @@
 //#undef PGQL_DEBUG
 static const char* PGQL_ENV_CONN_NAME = "OV_POSTGRES_CONN";    // Environment variable with connection settings
 static const char* PGQL_ENV_SESS_NAME = "OV_TEST_SESSION_ID";  // Environment variable identifies current session
+
+#ifndef _WIN32
+#    ifndef __USE_POSIX
+#        define __USE_POSIX
+#    endif
+#    include <limits.h>
+#endif
 
 #ifndef PGQL_DYNAMIC_LOAD
 #    include "libpq-fe.h"
@@ -244,7 +252,7 @@ public:
 static std::shared_ptr<PostgreSQLConnection> connection(nullptr);
 std::shared_ptr<PostgreSQLConnection> PostgreSQLConnection::GetInstance(void) {
     if (connection.get() == nullptr) {
-        connection.swap(std::shared_ptr<PostgreSQLConnection>(new PostgreSQLConnection()));
+        connection = std::shared_ptr<PostgreSQLConnection>(new PostgreSQLConnection());
     }
     return connection;
 }
@@ -282,7 +290,6 @@ bool PostgreSQLConnection::Initialize() {
             dlclose(*ptr);
         }
     });
-    modLibPQ.swap(std::make_shared<HMODULE>());
 #    endif
     if (*modLibPQ == (HMODULE)0) {
         std::cerr << "Cannot load PostgreSQL client module libPQ, reporting is unavailable" << std::endl;
@@ -397,7 +404,6 @@ static std::string GetExecutableName(void) {
 /// \brief Cross-platform implementation of getting host name
 /// \returns String with host name or "NOT_FOUND" in case of error
 static std::string GetHostname(void) {
-    std::string hostName = "NOT_FOUND";
 #ifdef _WIN32
     DWORD szHostName = MAX_COMPUTERNAME_LENGTH;
     char cHostName[MAX_COMPUTERNAME_LENGTH + 1] = {};
@@ -407,11 +413,10 @@ static std::string GetHostname(void) {
     char cHostName[HOST_NAME_MAX];
     if (gethostname(cHostName, HOST_NAME_MAX)) {
         std::cerr << "Cannot get a host name" << std::endl;
+        return "NOT_FOUND";
 #endif
-    } else {
-        hostName = cHostName;
     }
-    return hostName;
+    return cHostName;
 }
 
 /// \brief Helper for checking PostgreSQL results
