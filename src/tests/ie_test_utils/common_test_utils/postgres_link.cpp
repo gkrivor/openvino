@@ -169,12 +169,10 @@ public:
 
     static std::shared_ptr<PostgreSQLConnection> GetInstance(void);
     bool Initialize();
-    /// \brief Queries a server. Result will be returned as self-desctructable pointer. But application should check
-    /// result
-    ///        pointer isn't a nullptr.
-    /// \param[in] query SQL query to a server
+    /// \brief Make a common query to a server. Result will be returned as self-desctructable pointer. But application
+    /// should check result pointer isn't a nullptr. And result status by itself. \param[in] query SQL query to a server
     /// \returns Object which keep pointer on received PGresult. It contains nullptr in case of any error.
-    PGresultHolder Query(const char* query) {
+    PGresultHolder CommonQuery(const char* query) {
 #ifdef PGQL_DEBUG
         std::cerr << query << std::endl;
 #endif
@@ -190,6 +188,28 @@ public:
             // If reconnection attempt was successfull - let's try to set new query
             if (isConnected) {
                 result.reset(PQexec(this->activeConnection, query));
+            }
+        }
+        if (result.get() == nullptr) {
+            std::cerr << "Error while querying PostgreSQL" << std::endl;
+        }
+        return result;
+    }
+
+    /// \brief Queries a server. Result will be returned as self-desctructable pointer. But application should check
+    /// result pointer isn't a nullptr.
+    /// \param[in] query SQL query to a server
+    /// \param[in] expectedStatus Query result will be checked for passed status, if it isn't equal - result pointer
+    /// will be nullptr. \returns Object which keep pointer on received PGresult. It contains nullptr in case of any
+    /// error.
+    PGresultHolder Query(const char* query, const ExecStatusType expectedStatus = PGRES_TUPLES_OK) {
+        PGresultHolder result = CommonQuery(query);
+        if (result.get() != nullptr) {
+            ExecStatusType execStatus = PQresultStatus(result.get());
+            if (execStatus != expectedStatus) {
+                std::cerr << "Received unexpected result (" << static_cast<unsigned int>(execStatus)
+                          << ") from PostgreSQL, expected: " << static_cast<unsigned int>(expectedStatus) << std::endl;
+                result.reset(nullptr);
             }
         }
         return result;
@@ -324,10 +344,10 @@ bool PostgreSQLConnection::Initialize() {
     return true;
 }
 
-#define CHECK_PGQUERY(var_name)                                      \
-    if (var_name.get() == nullptr) {                                 \
-        std::cerr << "Error while querying PostgreSQL" << std::endl; \
-        return;                                                      \
+#define CHECK_PGRESULT(var_name, error_message, action) \
+    if (var_name.get() == nullptr) {                    \
+        std::cerr << error_message << std::endl;        \
+        action;                                         \
     }
 
 /*
@@ -407,14 +427,12 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         std::stringstream sstr;
         sstr << "SELECT GET_TEST_SUITE('" << test_suite.name() << "')";
         auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-        CHECK_PGQUERY(pgresult);
-        ExecStatusType execStatus = PQresultStatus(pgresult.get());
-        if (execStatus != PGRES_TUPLES_OK) {
-            std::cerr << "Cannot retrieve a correct sn_id, error: " << static_cast<uint64_t>(execStatus) << std::endl;
-        }
+        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct sn_id", return );
+
         this->testSuiteNameId = std::atoi(PQgetvalue(pgresult.get(), 0, 0));
         if (this->testSuiteNameId == 0) {
             std::cerr << "Cannot interpret a returned sn_id, value: " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;
+            return;
         }
 
         sstr.str("");
@@ -422,14 +440,11 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         sstr << "INSERT INTO suite_results (sr_id, session_id, suite_id) VALUES (DEFAULT, " << this->sessionId << ", "
              << this->testSuiteNameId << ") RETURNING sr_id";
         pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-        CHECK_PGQUERY(pgresult);
-        execStatus = PQresultStatus(pgresult.get());
-        if (execStatus != PGRES_TUPLES_OK) {
-            std::cerr << "Cannot retrieve a correct sr_id, error: " << static_cast<uint64_t>(execStatus) << std::endl;
-        }
+        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct sr_id", return );
         this->testSuiteId = std::atoi(PQgetvalue(pgresult.get(), 0, 0));
         if (this->testSuiteId == 0) {
             std::cerr << "Cannot interpret a returned sr_id, value: " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;
+            return;
         }
     }
 //  Legacy API is deprecated but still available
@@ -506,14 +521,11 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         sstr << ")";
 
         auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-        CHECK_PGQUERY(pgresult);
-        ExecStatusType execStatus = PQresultStatus(pgresult.get());
-        if (execStatus != PGRES_TUPLES_OK) {
-            std::cerr << "Cannot retrieve a correct tn_id, error: " << static_cast<uint64_t>(execStatus) << std::endl;
-        }
+        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct tn_id", return );
         this->testNameId = std::atoi(PQgetvalue(pgresult.get(), 0, 0));
         if (this->testNameId == 0) {
             std::cerr << "Cannot interpret a returned tn_id, value: " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;
+            return;
         }
 
         sstr.str("");
@@ -521,19 +533,16 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         sstr << "INSERT INTO test_results (tr_id, session_id, suite_id, test_id) VALUES (DEFAULT, " << this->sessionId
              << ", " << this->testSuiteId << ", " << this->testNameId << ") RETURNING tr_id";
         pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-        CHECK_PGQUERY(pgresult);
-        execStatus = PQresultStatus(pgresult.get());
-        if (execStatus != PGRES_TUPLES_OK) {
-            std::cerr << "Cannot retrieve a correct tr_id, error: " << static_cast<uint64_t>(execStatus) << std::endl;
-        }
+        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct tr_id", return );
         this->testId = std::atoi(PQgetvalue(pgresult.get(), 0, 0));
         if (this->testId == 0) {
             std::cerr << "Cannot interpret a returned tr_id, value: " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;
+            return;
         }
     }
     void OnTestPartResult(const ::testing::TestPartResult& test_part_result) override {
-//        std::stringstream sstr;
-//        sstr << "INSERT INTO test_starts(part) (name) VALUES (\"partresult\")";
+        //        std::stringstream sstr;
+        //        sstr << "INSERT INTO test_starts(part) (name) VALUES (\"partresult\")";
     }
     void OnTestEnd(const ::testing::TestInfo& test_info) override {
         if (!this->isPostgresEnabled)
@@ -547,12 +556,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             testResult = 2;
         sstr << "UPDATE test_results SET finished_at=NOW(), duration=" << test_info.result()->elapsed_time()
              << ", test_result=" << testResult << " WHERE tr_id=" << this->testId;
-        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-        CHECK_PGQUERY(pgresult);
-        ExecStatusType execStatus = PQresultStatus(pgresult.get());
-        if (execStatus != PGRES_COMMAND_OK) {
-            std::cerr << "Cannot update test results, error: " << static_cast<uint64_t>(execStatus) << std::endl;
-        }
+        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str(), PGRES_COMMAND_OK);
+        CHECK_PGRESULT(pgresult, "Cannot update test results", return );
         this->testId = 0;
     }
     void OnTestSuiteEnd(const ::testing::TestSuite& test_suite) override {
@@ -562,12 +567,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         std::stringstream sstr;
         sstr << "UPDATE suite_results SET finished_at=NOW(), duration=" << test_suite.elapsed_time()
              << ", suite_result=" << (test_suite.Passed() ? 1 : 0) << " WHERE sr_id=" << this->testSuiteId;
-        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-        CHECK_PGQUERY(pgresult);
-        ExecStatusType execStatus = PQresultStatus(pgresult.get());
-        if (execStatus != PGRES_COMMAND_OK) {
-            std::cerr << "Cannot update test suite results, error: " << static_cast<uint64_t>(execStatus) << std::endl;
-        }
+        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str(), PGRES_COMMAND_OK);
+        CHECK_PGRESULT(pgresult, "Cannot update test suite results", return );
         this->testSuiteId = 0;
     }
 #ifndef GTEST_REMOVE_LEGACY_TEST_CASEAPI_
@@ -593,15 +594,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             std::stringstream sstr;
             sstr << "SELECT GET_SESSION(" << this->session_id << ")";
             auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-            CHECK_PGQUERY(pgresult);
-
-            ExecStatusType execStatus = PQresultStatus(pgresult.get());
+            CHECK_PGRESULT(pgresult, "Cannot retrieve a correct session_id", isPostgresEnabled = false; return );
             isPostgresEnabled = connInitResult;
-            if (execStatus != PGRES_TUPLES_OK) {
-                std::cerr << "Cannot retrieve a correct session_id, error: " << static_cast<uint64_t>(execStatus)
-                          << std::endl;
-                isPostgresEnabled = false;
-            }
             this->sessionId = std::atoi(PQgetvalue(pgresult.get(), 0, 0));
             if (this->sessionId == 0) {
                 std::cerr << "Cannot interpret a returned session_id, value: " << PQgetvalue(pgresult.get(), 0, 0)
@@ -621,11 +615,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         std::stringstream sstr;
         sstr << "UPDATE sessions SET end_time=NOW() WHERE session_id=" << this->sessionId << " AND end_time<NOW()";
-        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-        ExecStatusType execStatus = PQresultStatus(pgresult.get());
-        if (execStatus != PGRES_COMMAND_OK) {
-            std::cerr << "Cannot update session finish info, error: " << static_cast<uint64_t>(execStatus) << std::endl;
-        }
+        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str(), PGRES_COMMAND_OK);
+        CHECK_PGRESULT(pgresult, "Cannot update session finish info", return );
     }
     /* Prohobit creation outsize of class, need to make a Singleton */
     PostgreSQLEventListener(const PostgreSQLEventListener&) = delete;
