@@ -175,6 +175,9 @@ public:
     /// \param[in] query SQL query to a server
     /// \returns Object which keep pointer on received PGresult. It contains nullptr in case of any error.
     PGresultHolder Query(const char* query) {
+#ifdef PGQL_DEBUG
+        std::cerr << query << std::endl;
+#endif
         if (!isConnected)
             return PGresultHolder();
         PGresultHolder result(PQexec(this->activeConnection, query));
@@ -192,6 +195,7 @@ public:
         return result;
     }
 
+    /// \brief Tries to reconnect in case of connection issues (usual usage - connection timeout).
     void TryReconnect(void) {
         if (!isConnected) {
             return;
@@ -402,9 +406,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         std::stringstream sstr;
         sstr << "SELECT GET_TEST_SUITE('" << test_suite.name() << "')";
-#ifdef PGQL_DEBUG
-        std::cerr << sstr.str() << std::endl;
-#endif
         auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         ExecStatusType execStatus = PQresultStatus(pgresult.get());
@@ -420,9 +421,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         sstr.clear();
         sstr << "INSERT INTO suite_results (sr_id, session_id, suite_id) VALUES (DEFAULT, " << this->sessionId << ", "
              << this->testSuiteNameId << ") RETURNING sr_id";
-#ifdef PGQL_DEBUG
-        std::cerr << sstr.str() << std::endl;
-#endif
         pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         execStatus = PQresultStatus(pgresult.get());
@@ -507,9 +505,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         }
         sstr << ")";
 
-#ifdef PGQL_DEBUG
-        std::cerr << sstr.str() << std::endl;
-#endif
         auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         ExecStatusType execStatus = PQresultStatus(pgresult.get());
@@ -525,9 +520,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         sstr.clear();
         sstr << "INSERT INTO test_results (tr_id, session_id, suite_id, test_id) VALUES (DEFAULT, " << this->sessionId
              << ", " << this->testSuiteId << ", " << this->testNameId << ") RETURNING tr_id";
-#ifdef PGQL_DEBUG
-        std::cerr << sstr.str() << std::endl;
-#endif
         pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         execStatus = PQresultStatus(pgresult.get());
@@ -540,11 +532,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         }
     }
     void OnTestPartResult(const ::testing::TestPartResult& test_part_result) override {
-        std::stringstream sstr;
-        sstr << "INSERT INTO test_starts(part) (name) VALUES (\"partresult\")";
-#ifdef PGQL_DEBUG
-        std::cerr << sstr.str() << std::endl;
-#endif
+//        std::stringstream sstr;
+//        sstr << "INSERT INTO test_starts(part) (name) VALUES (\"partresult\")";
     }
     void OnTestEnd(const ::testing::TestInfo& test_info) override {
         if (!this->isPostgresEnabled)
@@ -558,9 +547,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             testResult = 2;
         sstr << "UPDATE test_results SET finished_at=NOW(), duration=" << test_info.result()->elapsed_time()
              << ", test_result=" << testResult << " WHERE tr_id=" << this->testId;
-#ifdef PGQL_DEBUG
-        std::cerr << sstr.str() << std::endl;
-#endif
         auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         ExecStatusType execStatus = PQresultStatus(pgresult.get());
@@ -576,9 +562,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         std::stringstream sstr;
         sstr << "UPDATE suite_results SET finished_at=NOW(), duration=" << test_suite.elapsed_time()
              << ", suite_result=" << (test_suite.Passed() ? 1 : 0) << " WHERE sr_id=" << this->testSuiteId;
-#ifdef PGQL_DEBUG
-        std::cerr << sstr.str() << std::endl;
-#endif
         auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGQUERY(pgresult);
         ExecStatusType execStatus = PQresultStatus(pgresult.get());
@@ -609,9 +592,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
             std::stringstream sstr;
             sstr << "SELECT GET_SESSION(" << this->session_id << ")";
-#ifdef PGQL_DEBUG
-            std::cerr << sstr.str() << std::endl;
-#endif
             auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
             CHECK_PGQUERY(pgresult);
 
@@ -641,9 +621,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         std::stringstream sstr;
         sstr << "UPDATE sessions SET end_time=NOW() WHERE session_id=" << this->sessionId << " AND end_time<NOW()";
-#ifdef PGQL_DEBUG
-        std::cerr << sstr.str() << std::endl;
-#endif
         auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         ExecStatusType execStatus = PQresultStatus(pgresult.get());
         if (execStatus != PGRES_COMMAND_OK) {
