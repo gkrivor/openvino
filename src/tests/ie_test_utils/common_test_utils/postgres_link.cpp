@@ -332,7 +332,7 @@ bool PostgreSQLConnection::Initialize() {
                   << std::endl;
         return false;
     } else {
-        std::cerr << "PostgreSQL connection string: " << envConnString;
+        std::cerr << "PostgreSQL connection string: " << envConnString << std::endl;
     }
 
     this->activeConnection = PQconnectdb(envConnString);
@@ -384,6 +384,66 @@ static std::vector<std::string> ParseValueParam(std::string text) {
         }
     }
     return results;
+}
+
+/// \brief Function returns OS version in runtime.
+/// \returns String which contains OS version
+static std::string GetOSVersion(void) {
+#ifndef _WIN32
+    struct utsname uts;
+    uname(&uts);
+    return uts.sysname;
+#else
+    OSVERSIONINFOEX osVersionInfo = {};
+
+    ZeroMemory(&osVersionInfo, sizeof(OSVERSIONINFOEX));
+    osVersionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+
+    if (FAILED(GetVersionEx((LPOSVERSIONINFO)&osVersionInfo))) {
+        return "Unknown Windows OS";
+    }
+    std::stringstream winVersion;
+    winVersion << "Windows ";
+    DWORD encodedVersion = (osVersionInfo.dwMajorVersion << 8) | osVersionInfo.dwMinorVersion; 
+    switch (encodedVersion) {
+    case 0x0A00:
+        winVersion << ((osVersionInfo.wProductType == VER_NT_WORKSTATION) ? "10" : "2016");
+        break;
+    case 0x0603:
+        winVersion << ((osVersionInfo.wProductType == VER_NT_WORKSTATION) ? "8.1" : "2012 R2");
+        break;
+    case 0x0602:
+        winVersion << ((osVersionInfo.wProductType == VER_NT_WORKSTATION) ? "8" : "2012");
+        break;
+    case 0x0601:
+        winVersion << ((osVersionInfo.wProductType == VER_NT_WORKSTATION) ? "7" : "2008 R2");
+        break;
+    case 0x0600:
+        winVersion << ((osVersionInfo.wProductType == VER_NT_WORKSTATION) ? "Vista" : "2008");
+        break;
+    default:
+        winVersion << osVersionInfo.dwMajorVersion << "." << osVersionInfo.dwMinorVersion;
+        break;
+    }
+    if (osVersionInfo.wSuiteMask & VER_SUITE_BACKOFFICE)
+        winVersion << " BackOffice";
+    if (osVersionInfo.wSuiteMask & VER_SUITE_BLADE)
+        winVersion << " Web Edition";
+    if (osVersionInfo.wSuiteMask & VER_SUITE_COMPUTE_SERVER)
+        winVersion << " Compute Cluster Edition";
+    if (osVersionInfo.wSuiteMask & VER_SUITE_DATACENTER)
+        winVersion << " Datacenter Edition";
+    if (osVersionInfo.wSuiteMask & VER_SUITE_ENTERPRISE)
+        winVersion << " Enterprise Edition";
+    if (osVersionInfo.wSuiteMask & VER_SUITE_EMBEDDEDNT)
+        winVersion << " Embedded";
+    if (osVersionInfo.wSuiteMask & VER_SUITE_PERSONAL)
+        winVersion << " Home";
+    if (osVersionInfo.wSuiteMask & VER_SUITE_SMALLBUSINESS)
+        winVersion << " Small Business";
+
+    winVersion << " " << osVersionInfo.szCSDVersion << " Build: " << osVersionInfo.dwBuildNumber;
+#endif
 }
 
 /// \brief Function returns executable name of current application.
@@ -487,7 +547,10 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                       "SELECT GET_RUN(" << this->testRunId << ", " << this->appId << ", " << this->sessionId << ")",
                       testRunId,
                       run_id)
-    GET_PG_IDENTIFIER(RequestHostId(void), "SELECT GET_HOST('" << GetHostname() << "')", hostId, host_id)
+    GET_PG_IDENTIFIER(RequestHostId(void),
+                      "SELECT GET_HOST('" << GetHostname() << "', '" << GetOSVersion() << "')",
+                      hostId,
+                      host_id)
     GET_PG_IDENTIFIER(RequestSessionId(void), "SELECT GET_SESSION('" << this->session_id << "')", sessionId, session_id)
     GET_PG_IDENTIFIER(RequestSuiteNameId(const char* test_suite_name),
                       "SELECT GET_TEST_SUITE('" << test_suite_name << "', " << this->appId << ")",
