@@ -383,13 +383,11 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     void OnTestProgramEnd(const ::testing::UnitTest& unit_test) override {}
     */
 
-    /*
-    This method is used for parsing serialized value_param string.
-
-    Known limitations:
-    It doesn't read values in inner tuples/arrays/etc.
-    */
-    std::vector<std::string> ParseValueParam(std::string text) {
+    /// \brief This method is used for parsing serialized value_param string.
+    ///
+    ///        Known limitations:
+    ///        It doesn't read values in inner tuples/arrays/etc.
+    std::vector<std::string> ParseValueParam(std::string text) const {
         std::vector<std::string> results;
         size_t beginning = 0;
         size_t chrPos = 0;
@@ -420,6 +418,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         }
         return results;
     }
+
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
         if (!this->isPostgresEnabled || !this->sessionId)
             return;
