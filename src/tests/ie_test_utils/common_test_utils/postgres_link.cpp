@@ -421,7 +421,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         return results;
     }
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
-        if (!this->isPostgresEnabled)
+        if (!this->isPostgresEnabled || !this->sessionId)
             return;
 
         std::stringstream sstr;
@@ -456,7 +456,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 #endif  //  GTEST_REMOVE_LEGACY_TEST_CASEAPI_
 
     void OnTestStart(const ::testing::TestInfo& test_info) override {
-        if (!this->isPostgresEnabled)
+        if (!this->isPostgresEnabled || !this->sessionId || !this->testSuiteNameId || !this->testSuiteId)
             return;
 
         std::stringstream sstr;
@@ -541,11 +541,15 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         }
     }
     void OnTestPartResult(const ::testing::TestPartResult& test_part_result) override {
+        if (!this->isPostgresEnabled || !this->sessionId || !this->testSuiteNameId || !this->testSuiteId ||
+            !this->testNameId || !this->testId)
+            return;
         //        std::stringstream sstr;
         //        sstr << "INSERT INTO test_starts(part) (name) VALUES (\"partresult\")";
     }
     void OnTestEnd(const ::testing::TestInfo& test_info) override {
-        if (!this->isPostgresEnabled)
+        if (!this->isPostgresEnabled || !this->sessionId || !this->testSuiteNameId || !this->testSuiteId ||
+            !this->testNameId || !this->testId)
             return;
 
         std::stringstream sstr;
@@ -561,7 +565,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         this->testId = 0;
     }
     void OnTestSuiteEnd(const ::testing::TestSuite& test_suite) override {
-        if (!this->isPostgresEnabled)
+        if (!this->isPostgresEnabled || !this->sessionId || !this->testSuiteNameId || !this->testSuiteId)
             return;
 
         std::stringstream sstr;
@@ -610,7 +614,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         }
     }
     ~PostgreSQLEventListener() {
-        if (!this->isPostgresEnabled)
+        if (!this->isPostgresEnabled || !this->sessionId)
             return;
 
         std::stringstream sstr;
