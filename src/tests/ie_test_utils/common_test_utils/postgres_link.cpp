@@ -394,20 +394,44 @@ static std::string GetOSVersion(void) {
     uname(&uts);
     return uts.sysname;
 #else
-    OSVERSIONINFOEX osVersionInfo = {};
+    OSVERSIONINFOEXW osVersionInfo = {};
+
+    // Extended OS detection. We need it because of changed OS detection
+    // mechanism on Windows 11
+    // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-rtlgetversion
+    HMODULE hNTOSKRNL = LoadLibrary("ntoskrnl.exe");
+    typedef NTSTATUS (*fnRtlGetVersion)(PRTL_OSVERSIONINFOW lpVersionInformation);
+    fnRtlGetVersion RtlGetVersion = nullptr;
+    if (hNTOSKRNL) {
+        RtlGetVersion = (fnRtlGetVersion)GetProcAddress(hNTOSKRNL, "RtlGetVersion");
+    }
 
     ZeroMemory(&osVersionInfo, sizeof(OSVERSIONINFOEX));
-    osVersionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+    osVersionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEXW);
 
-    if (FAILED(GetVersionEx((LPOSVERSIONINFO)&osVersionInfo))) {
-        return "Unknown Windows OS";
-    }
     std::stringstream winVersion;
     winVersion << "Windows ";
-    DWORD encodedVersion = (osVersionInfo.dwMajorVersion << 8) | osVersionInfo.dwMinorVersion; 
+
+#    pragma warning(push)
+#    pragma warning(disable : 4996)
+    if (FAILED(GetVersionExW((LPOSVERSIONINFOW)&osVersionInfo))) {
+        return "Unknown Windows OS";
+    }
+#    pragma warning(pop)
+
+    // On Windows 11 GetVersionExW returns wrong information (like a Windows 8, build 9200)
+    // Because of that we update inplace information if RtlGetVersion is available
+    osVersionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOW);
+    if (RtlGetVersion && SUCCEEDED(RtlGetVersion((PRTL_OSVERSIONINFOW)&osVersionInfo))) {
+        if (osVersionInfo.dwBuildNumber >= 22000)
+            winVersion << "11";
+    }
+
+    DWORD encodedVersion = (osVersionInfo.dwMajorVersion << 8) | osVersionInfo.dwMinorVersion;
     switch (encodedVersion) {
     case 0x0A00:
-        winVersion << ((osVersionInfo.wProductType == VER_NT_WORKSTATION) ? "10" : "2016");
+        if (osVersionInfo.dwBuildNumber < 22000)
+            winVersion << ((osVersionInfo.wProductType == VER_NT_WORKSTATION) ? "10" : "2016");
         break;
     case 0x0603:
         winVersion << ((osVersionInfo.wProductType == VER_NT_WORKSTATION) ? "8.1" : "2012 R2");
@@ -442,7 +466,9 @@ static std::string GetOSVersion(void) {
     if (osVersionInfo.wSuiteMask & VER_SUITE_SMALLBUSINESS)
         winVersion << " Small Business";
 
-    winVersion << " " << osVersionInfo.szCSDVersion << " Build: " << osVersionInfo.dwBuildNumber;
+    winVersion << " Build: " << osVersionInfo.dwBuildNumber;
+
+    return winVersion.str();
 #endif
 }
 
