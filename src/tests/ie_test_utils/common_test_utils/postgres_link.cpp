@@ -364,14 +364,14 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
     /* Dynamic information about current session*/
     uint64_t sessionId = 0;
+    uint64_t appId = 0;
+    uint64_t hostId = 0;
     uint64_t testIterationId = 0;
     uint64_t testSuiteNameId = 0;
     uint64_t testNameId = 0;
     uint64_t testSuiteId = 0;
     uint64_t testId = 0;
-    uint64_t testAppId = 0;
     uint64_t testRunId = 0;
-    uint64_t testHostId = 0;
     std::map<std::string, std::string> testCustomFields;
 
     // Unused event handlers, kept here for possible use in the future
@@ -473,31 +473,29 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
     GET_PG_IDENTIFIER(RequestApplicationId(void),
                       "SELECT GET_APPLICATION('" << GetExecutableName() << "')",
-                      testAppId,
+                      appId,
                       app_id)
-    GET_PG_IDENTIFIER(RequestHostId(void), "SELECT GET_HOST('" << GetHostname() << "')", testHostId, host_id)
+    GET_PG_IDENTIFIER(RequestHostId(void), "SELECT GET_HOST('" << GetHostname() << "')", hostId, host_id)
+    GET_PG_IDENTIFIER(RequestSessionId(void), "SELECT GET_SESSION('" << this->session_id << "')", sessionId, session_id)
+    GET_PG_IDENTIFIER(RequestSuiteNameId(const char* test_suite_name),
+                      "SELECT GET_TEST_SUITE('" << test_suite_name << "')",
+                      testSuiteNameId,
+                      sn_id)
 
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
         if (!this->isPostgresEnabled || !this->sessionId)
             return;
 
-        std::stringstream sstr;
-        sstr << "SELECT GET_TEST_SUITE('" << test_suite.name() << "')";
-        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct sn_id", return );
-
-        this->testSuiteNameId = std::atoi(PQgetvalue(pgresult.get(), 0, 0));
-        if (this->testSuiteNameId == 0) {
-            std::cerr << "Cannot interpret a returned sn_id, value: " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;
+        if (!RequestSuiteNameId(test_suite.name()))
             return;
-        }
 
-        sstr.str("");
-        sstr.clear();
+        std::stringstream sstr;
+
         sstr << "INSERT INTO suite_results (sr_id, session_id, suite_id) VALUES (DEFAULT, " << this->sessionId << ", "
              << this->testSuiteNameId << ") RETURNING sr_id";
-        pgresult = (*connectionKeeper).Query(sstr.str().c_str());
+        auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
         CHECK_PGRESULT(pgresult, "Cannot retrieve a correct sr_id", return );
+
         this->testSuiteId = std::atoi(PQgetvalue(pgresult.get(), 0, 0));
         if (this->testSuiteId == 0) {
             std::cerr << "Cannot interpret a returned sr_id, value: " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;
@@ -658,21 +656,9 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                 isPostgresEnabled &= RequestApplicationId();
             if (isPostgresEnabled)
                 isPostgresEnabled &= RequestHostId();
+            if (isPostgresEnabled)
+                isPostgresEnabled &= RequestSessionId();
 
-            if (isPostgresEnabled) {
-                std::stringstream sstr;
-                sstr << "SELECT GET_SESSION('" << this->session_id << "')";
-                auto pgresult = (*connectionKeeper).Query(sstr.str().c_str());
-                CHECK_PGRESULT(pgresult, "Cannot retrieve a correct session_id", isPostgresEnabled = false; return );
-
-                this->sessionId = std::atoi(PQgetvalue(pgresult.get(), 0, 0));
-                if (this->sessionId == 0) {
-                    std::cerr << "Cannot interpret a returned session_id, value: " << PQgetvalue(pgresult.get(), 0, 0)
-                              << std::endl;
-                    isPostgresEnabled = false;
-                    return;
-                }
-            }
             if (isPostgresEnabled) {
                 connectionKeeper = connection;
             }
