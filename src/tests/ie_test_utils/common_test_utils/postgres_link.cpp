@@ -27,6 +27,7 @@ static const char* PGQL_ENV_SESS_NAME = "OV_TEST_SESSION_ID";  // Environment va
 #        define __USE_POSIX
 #    endif
 #    include <limits.h>
+#    include <sys/utsname.h>
 #endif
 
 #ifndef PGQL_DYNAMIC_LOAD

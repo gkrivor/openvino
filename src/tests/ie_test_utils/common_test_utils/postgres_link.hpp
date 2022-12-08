@@ -29,7 +29,6 @@ public:
     ///        as external identifier.
     /// \param[in] ptrParentObject Unsafe pointer to a parent object
     PostgreSQLLink(void* ptrParentObject) : PostgreSQLLink() {
-        PostgreSQLLink();
         SetParentObject(ptrParentObject);
     }
     /// \brief Simple destructor

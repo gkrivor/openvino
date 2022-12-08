@@ -105,9 +105,6 @@ if (ENABLE_TESTS)
     include(cmake/test_model_zoo.cmake)
 endif()
 
-# covers additional settings for conformance tests
-include(cmake/conformance.cmake)
-
 add_subdirectory(thirdparty)
 add_subdirectory(src)
 add_subdirectory(samples)
