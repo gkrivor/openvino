@@ -60,6 +60,14 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::dynamic;
     case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         return ov::element::bf16;
+    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E4M3FN:
+        return ov::element::f8e4m3;
+    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E4M3FNUZ:
+        return ov::element::f8e4m3;
+    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E5M2:
+        return ov::element::f8e5m2;
+    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E5M2FNUZ:
+        return ov::element::f8e5m2;
     }
     OPENVINO_THROW("unsupported element type");
 }
