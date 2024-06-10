@@ -31,6 +31,7 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
 }
 
 bool ReduceSumTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+    return false;
     const auto reduceSum = ov::as_type_ptr<ov::opset1::ReduceSum>(reduce);
     if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(context, reduceSum)) {
         return false;
@@ -48,6 +49,7 @@ bool ReduceSumTransformation::canBeTransformed(const TransformationContext& cont
         }
     }
 
+    std::cout << "ReduceSumTransformation::canBeTransformed: " << reduce->get_friendly_name() << std::endl;
     return true;
 }
 
@@ -67,12 +69,22 @@ void ReduceSumTransformation::changeDequantizationValues(
             reductionSize *= inputShape[elem].get_length();
         }
 
+        ov::pass::Serialize("lpt.reduce1.xml", "lpt.reduce1.bin").run_on_model(ov::Model::model_global);
+
         // (a1 - s) + (a2 - s) + ... + (an - s) = (a1 + a2 + ... + an) - n * s
         const auto reductionSizeConstant = ov::opset1::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
-        const auto result = fold<ov::opset1::Multiply>(dequantization.subtractConstant, reductionSizeConstant);
+        const auto result = fold<ov::opset1::Multiply>(
+            dequantization.subtractConstant->get_element_type() == deqPrecision ? 
+                dequantization.subtractConstant : 
+                std::dynamic_pointer_cast<ov::Node>(foldConvert(dequantization.subtractConstant, deqPrecision)), 
+            reductionSizeConstant);
+
+        result->set_friendly_name(reduce->get_friendly_name() + "_constant");
 
         replace_node(dequantization.subtractConstant, result);
         dequantization.subtractConstant = ov::as_type_ptr<ov::opset1::Constant>(result);
+
+        ov::pass::Serialize("lpt.reduce2.xml", "lpt.reduce2.bin").run_on_model(ov::Model::model_global);
     }
 }
 

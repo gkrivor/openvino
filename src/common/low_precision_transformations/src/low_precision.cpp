@@ -293,7 +293,12 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     REGISTER_PASS(manager, FoldFakeQuantizeTransformation, params)
     REGISTER_PASS(manager, ConstantFolding)
 
+    ov::pass::Serialize("lpt.before.xml", "lpt.before.bin").run_on_model(f);
+
     manager.run_passes(f);
+    
+    ov::pass::Serialize("lpt.after.xml", "lpt.after.bin").run_on_model(f);
+
     return false;
 }
 
