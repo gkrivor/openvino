@@ -79,10 +79,8 @@ public:
         bfloat16 = TensorProto_DataType::TensorProto_DataType_BFLOAT16,
         complex64 = TensorProto_DataType::TensorProto_DataType_COMPLEX64,
         complex128 = TensorProto_DataType::TensorProto_DataType_COMPLEX128,
-        float8e4m3fn = ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E4M3FN,
-        float8e4m3fnuz = ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E4M3FNUZ,
-        float8e5m2 = ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E5M2,
-        float8e5m2fnuz = ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E5M2FNUZ,
+        float8e4m3fn = TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN,
+        float8e5m2 = TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2,
     };
 
     Tensor() = delete;
@@ -170,7 +168,8 @@ public:
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(
                 m_tensor_proto->data_type(),
-                "BOOL, BFLOAT16, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16, UINT32, UINT64");
+                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, "
+                "UINT8, UINT16, UINT32, UINT64");
         }
     }
 
@@ -216,7 +215,8 @@ public:
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(
                 m_tensor_proto->data_type(),
-                "BOOL, BFLOAT16, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16, UINT32, UINT64");
+                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, "
+                "UINT8, UINT16, UINT32, UINT64");
         }
     }
 
