@@ -65,6 +65,8 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::f8e4m3;
     case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
         return ov::element::f8e5m2;
+    case TensorProto_DataType::TensorProto_DataType_STRING:
+        return ov::element::string;
     }
     ONNX_UNSUPPORTED_DATA_TYPE(onnx_type,
                                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT8, INT16, "
