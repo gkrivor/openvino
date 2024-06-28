@@ -215,7 +215,7 @@ public:
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
             return make_ov_constant<ov::float8_e5m2>(ov::element::f8e5m2);
         case TensorProto_DataType::TensorProto_DataType_STRING:
-            return ov::element::string;
+            return make_ov_constant<std::string>(ov::element::string);
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(
                 m_tensor_proto->data_type(),
