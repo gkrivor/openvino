@@ -163,6 +163,8 @@ public:
             return ov::element::f8e4m3;
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
             return ov::element::f8e5m2;
+        case TensorProto_DataType::TensorProto_DataType_STRING:
+            return ov::element::string;
         case TensorProto_DataType::TensorProto_DataType_UNDEFINED:
             FRONT_END_THROW("Data type is Undefined");
         default:
@@ -212,6 +214,8 @@ public:
             return make_ov_constant<ov::float8_e4m3>(ov::element::f8e4m3);
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
             return make_ov_constant<ov::float8_e5m2>(ov::element::f8e5m2);
+        case TensorProto_DataType::TensorProto_DataType_STRING:
+            return ov::element::string;
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(
                 m_tensor_proto->data_type(),
