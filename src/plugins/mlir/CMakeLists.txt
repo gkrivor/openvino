@@ -1,21 +1,27 @@
-cmake_minimum_required(VERSION 3.13)
-project(mlir_plugin)
+if(NOT ENABLE_MLIR)
+    return()
+endif()
 
-find_package(OpenVINO REQUIRED COMPONENTS Runtime)
+set(TARGET_NAME "openvino_mlir_plugin")
 
-add_library(openvino_mlir_plugin SHARED
+add_library(${TARGET_NAME} SHARED
     src/plugin.cpp
     src/compiled_model.cpp
     src/infer_request.cpp
+    src/ops/abs.cpp
     src/ops/add.cpp
     src/ops/mul.cpp
     src/ops/parameter.cpp
     src/ops/result.cpp
 )
 
-target_link_libraries(openvino_mlir_plugin PRIVATE openvino::runtime)
-target_include_directories(openvino_mlir_plugin PRIVATE ${OpenVINO_INCLUDE_DIRS})
+target_link_libraries(${TARGET_NAME} PRIVATE
+    openvino::runtime
+    openvino::runtime::dev)
+target_include_directories(${TARGET_NAME} PRIVATE ${OpenVINO_INCLUDE_DIRS})
+target_include_directories(${TARGET_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/
+        $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
-set_target_properties(openvino_mlir_plugin PROPERTIES
-    OUTPUT_NAME "openvino_mlir_plugin"
-)
+
+ov_register_plugins(MAIN_TARGET ${TARGET_NAME})

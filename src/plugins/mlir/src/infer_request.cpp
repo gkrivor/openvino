@@ -3,8 +3,7 @@
 namespace ov {
 namespace mlir {
 
-InferRequest::InferRequest(const std::shared_ptr<const ov::ICompiledModel>& model)
-    : ov::IInferRequest(model) {}
+InferRequest::InferRequest(const std::shared_ptr<const ov::ICompiledModel>& model) {}
 
 void InferRequest::infer() {}
 

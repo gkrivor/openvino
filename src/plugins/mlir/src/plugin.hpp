@@ -1,6 +1,6 @@
 #pragma once
 #include "openvino/runtime/iplugin.hpp"
-#include <sstream>
+#include <ostream>
 #include <memory>
 
 namespace ov {
@@ -19,7 +19,7 @@ public:
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override { return {}; }
 
     void model_to_mlir(const std::shared_ptr<const ov::Model>& model,
-                       const std::shared_ptr<std::stringstream>& out) const;
+                       const std::shared_ptr<std::ostream>& out) const;
 };
 
 } // namespace mlir

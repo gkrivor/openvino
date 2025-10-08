@@ -9,7 +9,7 @@ CompiledModel::CompiledModel(
     const std::shared_ptr<const ov::IPlugin>& plugin)
     : ov::ICompiledModel(model, plugin) {}
 
-std::shared_ptr<ov::IInferRequest> CompiledModel::create_infer_request() const {
+std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     return std::make_shared<InferRequest>(shared_from_this());
 }
 

@@ -3,7 +3,7 @@
 
 using namespace ov::mlir;
 
-static void translator_parameter(const std::shared_ptr<const ov::Node>& node, std::stringstream& ss) {
+static void translator_parameter(const std::shared_ptr<const ov::Node>& node, std::ostream& ss) {
     auto p = std::dynamic_pointer_cast<const ov::op::v0::Parameter>(node);
     if (!p) return;
     ss << "  %" << p->get_friendly_name()
