@@ -43,6 +43,26 @@ void CompiledModel::export_model(std::ostream& stream) const {
     auto& ss = stream;
     ss << "module @" << m_model->get_friendly_name() << " {\n";
 
+    ss << "  func.func @" << m_model->get_friendly_name() << "(";
+
+    std::string delimeter = "";
+    for(auto& arg: inputs()) {
+        ss << delimeter << "%" << arg.get_any_name() << ": !torch.vtensor<" << arg.get_partial_shape()
+           << "," << arg.get_element_type().get_type_name() << ">";
+        delimeter = ", ";
+    }
+
+    ss << ") -> ";
+
+    delimeter = "";
+    for(auto& res: outputs()) {
+        ss << delimeter << "!torch.vtensor<" << res.get_partial_shape()
+           << "," << res.get_element_type().get_type_name() << ">";
+        delimeter = ", ";
+    }
+
+    ss << " {\n";
+
     auto& translators = get_translators();
 
     for (const auto& node : m_model->get_ordered_ops()) {
@@ -56,7 +76,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
                << " (" << type_name << ")\n";
         }
     }
-    ss << "}\n";
+    ss << "  }\n"; // func.func
+    ss << "}\n"; // module
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
