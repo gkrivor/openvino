@@ -4,16 +4,13 @@ endif()
 
 set(TARGET_NAME "openvino_mlir_plugin")
 
-add_library(${TARGET_NAME} SHARED
-    src/plugin.cpp
-    src/compiled_model.cpp
-    src/infer_request.cpp
-    src/ops/abs.cpp
-    src/ops/add.cpp
-    src/ops/mul.cpp
-    src/ops/parameter.cpp
-    src/ops/result.cpp
-)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/ops/*.cpp)
+
+ov_add_plugin(NAME ${TARGET_NAME}
+              DEVICE_NAME "MLIR"
+              PSEUDO_DEVICE
+              SOURCES ${SOURCES}
+              VERSION_DEFINES_FOR src/plugin.cpp)
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     openvino::runtime
@@ -25,4 +22,3 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
-ov_register_plugins(MAIN_TARGET ${TARGET_NAME})

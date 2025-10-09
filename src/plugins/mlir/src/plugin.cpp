@@ -1,6 +1,7 @@
 #include "plugin.hpp"
 #include "compiled_model.hpp"
 #include "emit_reg.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -9,25 +10,28 @@
 namespace ov {
 namespace mlir {
 
-static std::map<std::string, translator_func> translators_map;
 static std::mutex translators_mutex;
+static std::vector<ov::PropertyName> supported_configKeys = {};
 
 std::map<std::string, translator_func>& get_translators() {
+    static std::map<std::string, translator_func> translators_map;
     return translators_map;
 }
 
 bool register_translator(const std::string& op_type, translator_func func) {
     std::lock_guard<std::mutex> lock(translators_mutex);
-    translators_map[op_type] = func;
+    get_translators()[op_type] = func;
     return true;
+}
+
+Plugin::Plugin() {
+    set_device_name("MLIR");
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& config) const {
-    const auto output_file = std::make_shared<std::ofstream>("debug.mlir", std::ios::binary);
-    model_to_mlir(model, output_file);
-    return std::make_shared<CompiledModel>(model, shared_from_this());
+    return compile_model(model, config, {});
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
@@ -35,10 +39,23 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    (void)name;
-    (void)arguments;
-    return {};
-}
+    if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
+        OPENVINO_THROW("The Value is not set for ", name);
+    } else if (name == ov::supported_properties.name()) {
+        std::vector<ov::PropertyName> property_name;
+        property_name.push_back(ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO});
+        property_name.push_back(ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO});
+        for (auto& it : supported_configKeys) {
+            property_name.push_back(it);
+        }
+        return decltype(ov::supported_properties)::value_type(std::move(property_name));
+    } else if (name == ov::internal::supported_properties.name()) {
+        return decltype(ov::internal::supported_properties)::value_type{};
+    } else if (name == ov::device::full_name.name()) {
+        return get_device_name();
+    } else {
+        OPENVINO_THROW("Unsupported property: ", name);
+    }}
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
@@ -47,7 +64,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
     (void)model;
     (void)properties;
     (void)context;
-    OPENVINO_THROW("Not implemented");
+    std::cout << "compile_model 1\n";
+    const auto output_file = std::make_shared<std::ofstream>("debug.mlir", std::ios::binary);
+    model_to_mlir(model, output_file);
+    return std::make_shared<CompiledModel>(model, shared_from_this());
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
@@ -122,6 +142,6 @@ void Plugin::model_to_mlir(const std::shared_ptr<const ov::Model>& model,
 } // namesppace ov
 
 // ! [plugin:create_plugin_engine]
-static const ov::Version version = {CI_BUILD_NUMBER, "openvino_template_plugin"};
+static const ov::Version version = {CI_BUILD_NUMBER, "openvino_mlir_plugin"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::mlir::Plugin, version)
 // ! [plugin:create_plugin_engine]

@@ -8,7 +8,7 @@ namespace mlir {
 
 class Plugin : public ov::IPlugin {
 public:
-    Plugin() = default;
+    Plugin();
     ~Plugin() override = default;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(
