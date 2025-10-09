@@ -20,7 +20,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     openvino::runtime::dev)
 target_include_directories(${TARGET_NAME} PRIVATE ${OpenVINO_INCLUDE_DIRS})
 target_include_directories(${TARGET_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 
