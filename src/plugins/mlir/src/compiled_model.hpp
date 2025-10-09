@@ -13,5 +13,5 @@ public:
     void export_model(std::ostream& stream) const override;
 };
 
-} // namespace my_plugin
+} // namespace mlir
 } // namespace ov

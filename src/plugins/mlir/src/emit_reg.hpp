@@ -15,5 +15,5 @@ std::map<std::string, translator_func>& get_translators();
 
 #define EMIT_REG(OP_TYPE, FUNC) static bool translator_reg_##FUNC = register_translator(OP_TYPE, FUNC);
 
-}
-}
+} // namespace mlir
+} // namespace ov

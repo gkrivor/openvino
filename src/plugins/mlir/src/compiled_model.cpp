@@ -15,5 +15,5 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 
 void CompiledModel::export_model(std::ostream& stream) const {}
 
-} // namespace my_plugin
+} // namespace mlir
 } // namespace ov
