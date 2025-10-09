@@ -29,6 +29,73 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
     return std::make_shared<CompiledModel>(model, shared_from_this());
 }
 
+void Plugin::set_property(const ov::AnyMap& properties) {
+    (void)properties;
+}
+
+ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    (void)name;
+    (void)arguments;
+    return {};
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const ov::SoPtr<ov::IRemoteContext>& context) const {
+    (void)model;
+    (void)properties;
+    (void)context;
+    OPENVINO_THROW("Not implemented");
+}
+
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
+    (void)remote_properties;
+    OPENVINO_THROW("Not implemented");
+}
+
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
+    (void)remote_properties;
+    OPENVINO_THROW("Not implemented");
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
+    (void)model;
+    (void)properties;
+    OPENVINO_THROW("Not implemented");
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    (void)model;
+    (void)context;
+    (void)properties;
+    OPENVINO_THROW("Not implemented");
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model, const ov::AnyMap& properties) const {
+    (void)model;
+    (void)properties;
+    OPENVINO_THROW("Not implemented");
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    (void)model;
+    (void)context;
+    (void)properties;
+    OPENVINO_THROW("Not implemented");
+}
+
+ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
+                                        const ov::AnyMap& properties) const {
+    (void)model;
+    (void)properties;
+    return {};
+}
+
 void Plugin::model_to_mlir(const std::shared_ptr<const ov::Model>& model,
                            const std::shared_ptr<std::ostream>& out) const {
     auto& ss = *out;

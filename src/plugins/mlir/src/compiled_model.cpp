@@ -9,11 +9,52 @@ CompiledModel::CompiledModel(
     const std::shared_ptr<const ov::IPlugin>& plugin)
     : ov::ICompiledModel(model, plugin) {}
 
+    CompiledModel::~CompiledModel() {}
+
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     return std::make_shared<InferRequest>(shared_from_this());
 }
 
-void CompiledModel::export_model(std::ostream& stream) const {}
+std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
+    OPENVINO_THROW("Not implemented");
+}
+
+std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
+    OPENVINO_THROW("Not implemented");
+}
+
+const std::vector<ov::Output<const ov::Node>>& CompiledModel::inputs() const {
+    OPENVINO_THROW("Not implemented");
+}
+
+const std::vector<ov::Output<const ov::Node>>& CompiledModel::outputs() const {
+    OPENVINO_THROW("Not implemented");
+}
+
+ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) const {
+    (void)tensor_name;
+    OPENVINO_THROW("Not implemented");
+}
+
+ov::Output<const ov::Node> CompiledModel::output(const std::string& tensor_name) const {
+    (void)tensor_name;
+    OPENVINO_THROW("Not implemented");
+}
+
+void CompiledModel::export_model(std::ostream& stream) const {
+    (void)stream;
+    OPENVINO_THROW("Not implemented");
+}
+
+ov::Any CompiledModel::get_property(const std::string& name) const {
+    (void)name;
+    OPENVINO_THROW("Not implemented");
+}
+
+void CompiledModel::set_property(const ov::AnyMap& properties) {
+    (void)properties;
+    OPENVINO_THROW("Not implemented");
+}
 
 } // namespace mlir
 } // namespace ov
