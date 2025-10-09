@@ -1,6 +1,5 @@
 #include "plugin.hpp"
 #include "compiled_model.hpp"
-#include "emit_reg.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 
 #include <fstream>
@@ -10,19 +9,7 @@
 namespace ov {
 namespace mlir {
 
-static std::mutex translators_mutex;
 static std::vector<ov::PropertyName> supported_configKeys = {};
-
-std::map<std::string, translator_func>& get_translators() {
-    static std::map<std::string, translator_func> translators_map;
-    return translators_map;
-}
-
-bool register_translator(const std::string& op_type, translator_func func) {
-    std::lock_guard<std::mutex> lock(translators_mutex);
-    get_translators()[op_type] = func;
-    return true;
-}
 
 Plugin::Plugin() {
     set_device_name("MLIR");
@@ -61,12 +48,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,
     const ov::SoPtr<ov::IRemoteContext>& context) const {
-    (void)model;
     (void)properties;
     (void)context;
-    std::cout << "compile_model 1\n";
-    const auto output_file = std::make_shared<std::ofstream>("debug.mlir", std::ios::binary);
-    model_to_mlir(model, output_file);
     return std::make_shared<CompiledModel>(model, shared_from_this());
 }
 
@@ -115,27 +98,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     (void)model;
     (void)properties;
     return {};
-}
-
-void Plugin::model_to_mlir(const std::shared_ptr<const ov::Model>& model,
-                           const std::shared_ptr<std::ostream>& out) const {
-    auto& ss = *out;
-    ss << "module @" << model->get_friendly_name() << " {\n";
-
-    auto& translators = get_translators();
-
-    for (const auto& node : model->get_ordered_ops()) {
-        auto type_name = node->get_type_name();
-        auto it = translators.find(type_name);
-        if (it != translators.end()) {
-            auto fn = it->second;
-            fn(node, ss);
-        } else {
-            ss << "  // Unsupported node: " << node->get_friendly_name()
-               << " (" << type_name << ")\n";
-        }
-    }
-    ss << "}\n";
 }
 
 } // namespace mlir

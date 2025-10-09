@@ -10,6 +10,8 @@ class Node;
 namespace mlir {
 
 class CompiledModel final : public ov::ICompiledModel {
+private:
+    std::shared_ptr<const ov::Model> m_model;
 public:
     CompiledModel(
         const std::shared_ptr<const ov::Model>& model,
@@ -34,7 +36,6 @@ public:
     // Properties (RW)
     ov::Any get_property(const std::string& name) const override;
     void set_property(const ov::AnyMap& properties) override;
-
 };
 
 

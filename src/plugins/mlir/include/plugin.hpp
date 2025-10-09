@@ -41,10 +41,6 @@ public:
     // Query model: by default report nothing supported
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
-
-protected:
-    void model_to_mlir(const std::shared_ptr<const ov::Model>& model,
-                       const std::shared_ptr<std::ostream>& out) const;
 };
 
 } // namespace mlir
