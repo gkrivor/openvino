@@ -6,13 +6,14 @@ namespace ov {
 // Forward declarations
 class Model;
 class Node;
-class Output;
 
 namespace mlir {
 
 class CompiledModel final : public ov::ICompiledModel {
 public:
-    CompiledModel();
+    CompiledModel(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::shared_ptr<const ov::IPlugin>& plugin);
     ~CompiledModel() override;
 
     // Create synchronous or async infer request (depending on your dev API)
@@ -26,10 +27,6 @@ public:
     // Input/Output ports (const versions in dev API)
     const std::vector<ov::Output<const ov::Node>>& inputs() const override;
     const std::vector<ov::Output<const ov::Node>>& outputs() const override;
-
-    // Named single-port accessors
-    ov::Output<const ov::Node> input(const std::string& tensor_name) const override;
-    ov::Output<const ov::Node> output(const std::string& tensor_name) const override;
 
     // Binary export
     void export_model(std::ostream& stream) const override;

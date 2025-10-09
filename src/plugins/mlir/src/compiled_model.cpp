@@ -9,10 +9,10 @@ CompiledModel::CompiledModel(
     const std::shared_ptr<const ov::IPlugin>& plugin)
     : ov::ICompiledModel(model, plugin) {}
 
-    CompiledModel::~CompiledModel() {}
+CompiledModel::~CompiledModel() {}
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
-    return std::make_shared<InferRequest>(shared_from_this());
+    OPENVINO_THROW("Not implemented");
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
@@ -28,16 +28,6 @@ const std::vector<ov::Output<const ov::Node>>& CompiledModel::inputs() const {
 }
 
 const std::vector<ov::Output<const ov::Node>>& CompiledModel::outputs() const {
-    OPENVINO_THROW("Not implemented");
-}
-
-ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) const {
-    (void)tensor_name;
-    OPENVINO_THROW("Not implemented");
-}
-
-ov::Output<const ov::Node> CompiledModel::output(const std::string& tensor_name) const {
-    (void)tensor_name;
     OPENVINO_THROW("Not implemented");
 }
 

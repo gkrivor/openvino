@@ -16,9 +16,10 @@ std::map<std::string, translator_func>& get_translators() {
     return translators_map;
 }
 
-void register_emit(const std::string& op_type, translator_func func) {
+bool register_translator(const std::string& op_type, translator_func func) {
     std::lock_guard<std::mutex> lock(translators_mutex);
     translators_map[op_type] = func;
+    return true;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
@@ -120,6 +121,7 @@ void Plugin::model_to_mlir(const std::shared_ptr<const ov::Model>& model,
 } // namespace mlir
 } // namesppace ov
 
-extern "C" OPENVINO_PLUGIN_API ov::IPlugin* CreatePluginEngine() {
-    return new ov::mlir::Plugin();
-}
+// ! [plugin:create_plugin_engine]
+static const ov::Version version = {CI_BUILD_NUMBER, "openvino_template_plugin"};
+OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::mlir::Plugin, version)
+// ! [plugin:create_plugin_engine]
