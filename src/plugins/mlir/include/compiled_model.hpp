@@ -26,10 +26,6 @@ public:
     // Model shape/graph reflection
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
-    // Input/Output ports (const versions in dev API)
-    const std::vector<ov::Output<const ov::Node>>& inputs() const override;
-    const std::vector<ov::Output<const ov::Node>>& outputs() const override;
-
     // Binary export
     void export_model(std::ostream& stream) const override;
 

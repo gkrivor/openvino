@@ -23,7 +23,7 @@ CompiledModel::CompiledModel(
     const std::shared_ptr<const ov::Model>& model,
     const std::shared_ptr<const ov::IPlugin>& plugin)
     : ov::ICompiledModel(model, plugin),
-    m_model(model) {}
+    m_model(model) {} // @todo need to copy model
 
 CompiledModel::~CompiledModel() {}
 
@@ -36,15 +36,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    OPENVINO_THROW("Not implemented");
-}
-
-const std::vector<ov::Output<const ov::Node>>& CompiledModel::inputs() const {
-    OPENVINO_THROW("Not implemented");
-}
-
-const std::vector<ov::Output<const ov::Node>>& CompiledModel::outputs() const {
-    OPENVINO_THROW("Not implemented");
+    return m_model;
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
