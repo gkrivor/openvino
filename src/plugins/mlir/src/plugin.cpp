@@ -1,5 +1,5 @@
-#include "plugin.hpp"
-#include "compiled_model.hpp"
+#include "plugin/mlir/plugin.hpp"
+#include "plugin/mlir/compiled_model.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 
 #include <fstream>

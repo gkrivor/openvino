@@ -1,4 +1,4 @@
-#include "infer_request.hpp"
+#include "plugin/mlir/infer_request.hpp"
 
 namespace ov {
 namespace mlir {

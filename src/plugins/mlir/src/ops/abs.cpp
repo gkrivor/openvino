@@ -1,4 +1,4 @@
-#include "common.hpp"
+#include "plugin/mlir/common.hpp"
 #include "openvino/op/abs.hpp"
 
 using namespace ov::mlir;

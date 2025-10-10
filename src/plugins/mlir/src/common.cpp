@@ -1,4 +1,4 @@
-#include "common.hpp"
+#include "plugin/mlir/common.hpp"
 
 namespace ov {
 namespace mlir {
@@ -17,23 +17,23 @@ void genVtensorTypeList(std::ostream& ss, const Range& range) {
 }
 } // namespace
 
-void genInputNames(std::ostream& ss, const std::shared_ptr<ov::Node>& node) {
+void genInputNames(std::ostream& ss, const std::shared_ptr<const ov::Node>& node) {
     ss << "(";
     std::string sep;
     for (const auto& io : node->inputs()) {
         ss << std::exchange(sep, ", ")
-           << "%" << io.get_friendly_name();
+           << "%" << io.get_source_output().get_node()->get_friendly_name();
     }
     ss << ")";
 }
 
-void genInputTypes(std::ostream& ss, const std::shared_ptr<ov::Node>& node) {
+void genInputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node) {
     ss << "(";
-    getVtensorTypeList(ss, node->inputs());
+    genVtensorTypeList(ss, node->inputs());
     ss << ")";
 }
 
-void genOutputTypes(std::ostream& ss, const std::shared_ptr<ov::Node>& node) {
+void genOutputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node) {
     // Insert " -> " only if inputs size > 0
     if (!node->inputs().empty()) {
         ss << " -> ";
