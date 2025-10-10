@@ -56,9 +56,19 @@ std::map<std::string, translator_func>& get_translators() {
     return translators_map;
 }
 
-bool register_translator(const std::string& op_type, translator_func func) {
+std::map<std::string, translator_func>& get_post_processors() {
+    static std::map<std::string, translator_func> post_processors_map;
+    return post_processors_map;
+}
+
+bool register_translator(const std::string& op_type, translator_func func, bool is_post_processor) {
     std::lock_guard<std::mutex> lock(translators_mutex);
-    get_translators()[op_type] = func;
+    if(is_post_processor == false) {
+        get_translators()[op_type] = func;
+    } else {
+        std::cout << "Registering post processor for " << op_type << std::endl;
+        get_post_processors()[op_type] = func;
+    }
     return true;
 }
 
@@ -154,8 +164,31 @@ void CompiledModel::export_model(std::ostream& stream) const {
                << " (" << type_info.name << ")\n";
         }
     }
-    ss << "  }\n"; // func.func
-    ss << "}\n"; // module
+    ss << "  }\n" // func.func
+       << "}\n\n" // module
+       << "{-#\n"
+       << "dialect_resources: {\n"
+       << "  builtin: {\n";
+    auto& post_processors = get_post_processors();
+
+    for (const auto& node : m_model->get_ordered_ops()) {
+        const auto& type_info = node->get_type_info();
+        {
+            // Find version-specific post processor "Abs::opset1", and if it isn't found - common "Abs"
+            auto it = post_processors.find(std::string(type_info.name) + "::" + type_info.version_id);
+            if(it == post_processors.end()) {
+                it = post_processors.find(type_info.name);
+            }
+            if (it != post_processors.end()) {
+                auto fn = it->second;
+                fn(node, ss);
+                continue;
+            }
+        }
+    }
+    ss << "  }\n" // builtin
+       << "}\n" // dialect_resources
+       << "#-}\n";
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {

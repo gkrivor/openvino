@@ -11,10 +11,11 @@ namespace mlir {
 /* ================ Translators Registration Processing ================ */
 using translator_func = void(*)(const std::shared_ptr<const ov::Node>& node, std::ostream& ss);
 
-bool register_translator(const std::string& op_type, translator_func func);
+bool register_translator(const std::string& op_type, translator_func func, bool is_post_processor = false);
 std::map<std::string, translator_func>& get_translators();
 
 #define EMIT_REG(OP_TYPE, FUNC) static bool translator_reg_##FUNC = register_translator(OP_TYPE, FUNC);
+#define EMIT_POST(OP_TYPE, FUNC) static bool post_processor_reg_##FUNC = register_translator(OP_TYPE, FUNC, true);
 
 /* ================ MLIR generators ================ */
 void genInputNames(std::ostream& ss, const std::shared_ptr<const ov::Node>& node);

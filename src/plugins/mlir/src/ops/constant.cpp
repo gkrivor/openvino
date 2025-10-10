@@ -192,8 +192,8 @@ module @test_abs {
 
     void translate_resource_constant(const std::shared_ptr<const ov::op::v0::Constant>& constant, std::ostream& ss) {
         const auto const_name = constant->get_friendly_name();
-        ss << " %" << const_name << " = torch.vtensor.literal(dense_resource<"
-           << const_name << "_res> : tensor<";
+        ss << "    %" << const_name << " = torch.vtensor.literal(dense_resource<"
+           << const_name << "_rc> : tensor<";
 
         const auto& const_shape = constant->get_output_partial_shape(0).to_shape();
         std::string sep;
@@ -205,6 +205,66 @@ module @test_abs {
         ss << "x" << constant->get_output_element_type(0).get_type_name() << ">) : "
            << "!torch.vtensor<" << constant->get_output_partial_shape(0)
            << "," << constant->get_output_element_type(0).get_type_name() << ">";
+    }
+
+    void print_as_hex(void* data, size_t size, std::ostream& ss) {
+        ss << "40000000"; // Alignment 4 byte
+        size_t i = 0;
+        uint8_t *data_1 = static_cast<uint8_t*>(data);
+        for(; i < size; ++i) {
+            ss << std::setw(2) << std::setfill('0') << std::hex << static_cast<uint16_t>(*(data_1 + i));
+        }
+        // Add bytes for alignment
+        for(; i < ((size + 3) / 4) * 4; ++i) {
+            ss << "00";
+        }
+    }
+
+    void post_process_resource_constant(const std::shared_ptr<const ov::op::v0::Constant>& constant, std::ostream& ss) {
+        ss << "    " << constant->get_friendly_name() << "_rc: \"0x";
+    
+        switch (constant->get_element_type())
+        {
+        case ov::element::f64:
+            print_as_hex(static_cast<void*>(constant->cast_vector<double>().data()), constant->get_byte_size(), ss);
+            break;
+        case ov::element::f32:
+            print_as_hex(static_cast<void*>(constant->cast_vector<float>().data()), constant->get_byte_size(), ss);
+            break;
+        case ov::element::bf16:
+            print_as_hex(static_cast<void*>(constant->cast_vector<ov::bfloat16>().data()), constant->get_byte_size(), ss);
+            break;
+        case ov::element::f16:
+            print_as_hex(static_cast<void*>(constant->cast_vector<ov::float16>().data()), constant->get_byte_size(), ss);
+            break;
+        case ov::element::i64:
+            print_as_hex(static_cast<void*>(constant->cast_vector<int64_t>().data()), constant->get_byte_size(), ss);
+            break;
+        case ov::element::i32:
+            print_as_hex(static_cast<void*>(constant->cast_vector<int32_t>().data()), constant->get_byte_size(), ss);
+            break;
+        case ov::element::i16:
+            print_as_hex(static_cast<void*>(constant->cast_vector<int16_t>().data()), constant->get_byte_size(), ss);
+            break;
+        case ov::element::i8:
+            print_as_hex(static_cast<void*>(constant->cast_vector<int8_t>().data()), constant->get_byte_size(), ss);
+            break;
+        case ov::element::u64:
+            print_as_hex(static_cast<void*>(constant->cast_vector<uint64_t>().data()), constant->get_byte_size(), ss);
+            break;
+        case ov::element::u32:
+            print_as_hex(static_cast<void*>(constant->cast_vector<uint32_t>().data()), constant->get_byte_size(), ss);
+            break;
+        case ov::element::u16:
+            print_as_hex(static_cast<void*>(constant->cast_vector<uint16_t>().data()), constant->get_byte_size(), ss);
+            break;
+        case ov::element::u8:
+            print_as_hex(static_cast<void*>(constant->cast_vector<uint8_t>().data()), constant->get_byte_size(), ss);
+            break;
+        default:
+            OPENVINO_THROW("Constant type isn't supported");
+        }
+        ss << "\"";
     }
 }
 
@@ -222,19 +282,40 @@ static void translator_constant(const std::shared_ptr<const ov::Node>& node, std
     } else {
         const auto& rt_info = constant->get_rt_info();
         if(rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static()) != rt_info.end()) {
-            // External file
+            // @todo: External file support
+            translate_resource_constant(constant, ss);
         } else {
             translate_resource_constant(constant, ss);
         }
     }
 
-/*
-    genInputNames(ss, node);
-    ss << " : ";
-    genInputTypes(ss, node);
-    genOutputTypes(ss, node);
-*/
+    ss << "\n";
+}
+
+static void post_processor_constant(const std::shared_ptr<const ov::Node>& node, std::ostream& ss) {
+    auto constant = std::dynamic_pointer_cast<const ov::op::v0::Constant>(node);
+    if (!constant) return;
+
+    const auto& const_shape = constant->get_output_partial_shape(0).to_shape();
+    const auto const_shape_size = ov::shape_size(const_shape);
+
+    if(const_shape_size == 0) {
+        // Scalar
+        return;
+    } else if(const_shape_size <= MAX_INLINE_CONST) {
+        // Small constant are inlined
+        return;
+    } else {
+        const auto& rt_info = constant->get_rt_info();
+        if(rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static()) != rt_info.end()) {
+            // @todo: External file support
+            post_process_resource_constant(constant, ss);
+        } else {
+            post_process_resource_constant(constant, ss);
+        }
+    }
     ss << "\n";
 }
 
 EMIT_REG("Constant", translator_constant);
+EMIT_POST("Constant", post_processor_constant);
