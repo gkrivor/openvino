@@ -129,7 +129,6 @@ void CompiledModel::export_model(std::ostream& stream) const {
             if(it == ov_to_aten.end()) {
                 it = ov_to_aten.find(type_info.name);
             }
-            it = ov_to_aten.find(type_info.name);
             if (it != ov_to_aten.end()) {
                 std::cout << "Found simple translator for " << type_info.name << " to " << it->second << std::endl;
                 translator_ov_to_aten(node, ss, it->second);
