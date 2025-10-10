@@ -1,4 +1,4 @@
-#include "emit_reg.hpp"
+#include "common.hpp"
 #include "openvino/op/abs.hpp"
 
 using namespace ov::mlir;

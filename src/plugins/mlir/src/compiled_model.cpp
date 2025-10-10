@@ -1,6 +1,6 @@
 #include "compiled_model.hpp"
 #include "infer_request.hpp"
-#include "emit_reg.hpp"
+#include "common.hpp"
 
 namespace ov {
 namespace mlir {
