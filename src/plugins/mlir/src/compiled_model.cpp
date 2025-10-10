@@ -6,6 +6,12 @@ namespace ov {
 namespace mlir {
 
 static std::mutex translators_mutex;
+static std::map<std::string, std::string> ov_to_aten = {
+    {"Abs", "torch.aten.abs"},
+    {"Add", "torch.aten.add"},
+    {"Mul", "torch.aten.mul"},
+    {"Sub", "torch.aten.sub"}
+}
 
 std::map<std::string, translator_func>& get_translators() {
     static std::map<std::string, translator_func> translators_map;
@@ -18,6 +24,17 @@ bool register_translator(const std::string& op_type, translator_func func) {
     return true;
 }
 
+void direct_translator(const std::shared_ptr<const ov::Node>& node, std::ostream& ss, const std::string& torch_name) {
+    ss << " %" << node->get_friendly_name()
+       << " = \"" << torch_name << "\" ";
+
+    genInputNames(ss, node);
+    ss << " : ";
+    genInputTypes(ss, node);
+    genOutputTypes(ss, node);
+
+    ss << "\n";
+}
 
 CompiledModel::CompiledModel(
     const std::shared_ptr<const ov::Model>& model,
@@ -67,11 +84,25 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     for (const auto& node : m_model->get_ordered_ops()) {
         auto type_name = node->get_type_name();
-        auto it = translators.find(type_name);
-        if (it != translators.end()) {
-            auto fn = it->second;
-            fn(node, ss);
-        } else {
+        // Direct translators from OV to ATen
+        {
+            auto& it = ov_to_aten.find(type_name);
+            if (it != ov_to_aten.end()) {
+                direct_translator(node, ss, it.second);
+                continue;
+            }
+        }
+        // Custom translators from OV to ATen
+        {
+            auto& it = translators.find(type_name);
+            if (it != translators.end()) {
+                auto fn = it->second;
+                fn(node, ss);
+                continue;
+            }
+        }
+        // Failed to translate operation
+        {
             ss << "  // Unsupported node: " << node->get_friendly_name()
                << " (" << type_name << ")\n";
         }
