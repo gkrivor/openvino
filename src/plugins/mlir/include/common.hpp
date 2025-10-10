@@ -8,12 +8,18 @@
 namespace ov {
 namespace mlir {
 
+/* ================ Translators Registration Processing ================ */
 using translator_func = void(*)(const std::shared_ptr<const ov::Node>& node, std::ostream& ss);
 
 bool register_translator(const std::string& op_type, translator_func func);
 std::map<std::string, translator_func>& get_translators();
 
 #define EMIT_REG(OP_TYPE, FUNC) static bool translator_reg_##FUNC = register_translator(OP_TYPE, FUNC);
+
+/* ================ MLIR generators ================ */
+void genInputNames(std::ostream& ss, const std::shared_ptr<ov::Node>& node);
+void genInputTypes(std::ostream& ss, const std::shared_ptr<ov::Node>& node);
+void genOutputTypes(std::ostream& ss, const std::shared_ptr<ov::Node>& node);
 
 } // namespace mlir
 } // namespace ov
