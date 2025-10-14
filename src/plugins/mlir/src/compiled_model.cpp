@@ -49,6 +49,8 @@ static std::map<std::string, std::string> ov_to_aten = {
     {"Atanh", "torch.aten.atanh"},
     {"Erf", "torch.aten.erf"},
     {"Relu", "torch.aten.relu"},
+    {"Reshape", "torch.aten.view"}, // ???
+
 };
 
 std::map<std::string, translator_func>& get_translators() {

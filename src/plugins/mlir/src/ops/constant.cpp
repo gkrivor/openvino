@@ -10,7 +10,7 @@ using namespace ov::mlir;
 
 namespace {
     void translate_scalar_constant(const std::shared_ptr<const ov::op::v0::Constant>& constant, std::ostream& ss) {
-        ss << " %" << constant->get_friendly_name()
+        ss << "    %" << constant->get_friendly_name()
         << " = torch.constant.";
         
         std::string const_type;
@@ -131,7 +131,7 @@ module @test_abs {
     }
 
     void translate_inline_constant(const std::shared_ptr<const ov::op::v0::Constant>& constant, std::ostream& ss) {
-        ss << " %" << constant->get_friendly_name()
+        ss << "    %" << constant->get_friendly_name()
         << " = torch.vtensor.literal(dense<";
     
         const auto& const_shape = constant->get_output_partial_shape(0).to_shape();
