@@ -1,6 +1,8 @@
 #include "plugin/mlir/compiled_model.hpp"
 #include "plugin/mlir/infer_request.hpp"
 #include "plugin/mlir/common.hpp"
+#include "iree/compiler/embedding_api.h"
+#include "iree/compiler/loader.h"
 
 namespace ov {
 namespace mlir {

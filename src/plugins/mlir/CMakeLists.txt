@@ -22,3 +22,10 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
+if(ENABLE_IREE_COMPILER_SRC)
+    target_include_directories(${TARGET_NAME} PRIVATE "${ENABLE_IREE_COMPILER_SRC}/compiler/bindings/c")
+endif()
+
+if(ENABLE_IREE_COMPILER_LIB)
+    target_link_libraries(${TARGET_NAME} PRIVATE "${ENABLE_IREE_COMPILER_LIB}/lib/iree_compiler_bindings_c_loader.lib")
+endif()
