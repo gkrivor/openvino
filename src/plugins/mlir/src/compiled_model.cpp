@@ -4,6 +4,8 @@
 #include "iree/compiler/embedding_api.h"
 #include "iree/compiler/loader.h"
 
+#include <fstream>
+
 namespace ov {
 namespace mlir {
 
@@ -88,13 +90,92 @@ void translator_ov_to_aten(const std::shared_ptr<const ov::Node>& node, std::ost
     ss << "\n";
 }
 
+namespace iree {
+static void init() {
+    static bool is_initialized = false;
+    if(is_initialized) {
+        return;
+    }
+    #ifdef _WIN32
+    ireeCompilerLoadLibrary("IREECompiler.dll");
+    #else
+    ireeCompilerLoadLibrary("libIREECompiler.so");
+    #endif
+    ireeCompilerGlobalInitialize();
+    // @todo: think how to call a GlobalShutdown...
+    is_initialized = true;
+}
+}
+
 CompiledModel::CompiledModel(
     const std::shared_ptr<const ov::Model>& model,
     const std::shared_ptr<const ov::IPlugin>& plugin)
     : ov::ICompiledModel(model, plugin),
-    m_model(model) {} // @todo need to copy model
+    m_model(model), // @todo need to copy model
+    m_compiled(nullptr),
+    m_compiled_size(0) {
+    iree::init();
+}
 
-CompiledModel::~CompiledModel() {}
+CompiledModel::~CompiledModel() {
+    reset_compiled();
+}
+
+void CompiledModel::init() {
+    std::shared_ptr<char> mlir_text = nullptr;
+    size_t mlir_text_size = 0;
+    {
+        std::shared_ptr<std::stringstream> ss = std::make_shared<std::stringstream>();
+        generate_mlir(*ss);
+        // Store a string stream as a continuous buffer
+        mlir_text_size = static_cast<size_t>(ss->tellp());
+        mlir_text.reset(new char[mlir_text_size + 1], [](char* p) {delete[] p;});
+        ss->seekg(0, std::ios::beg);
+        ss->read(mlir_text.get(), mlir_text_size);
+        *(mlir_text.get() + mlir_text_size) = 0;
+    }
+
+    iree_compiler_session_t *session = ireeCompilerSessionCreate();
+    // @todo: need to be able customize it at this stage
+    const char* iree_arg0 = "--iree-hal-target-device=local";
+    const char* iree_arg1 = "--iree-hal-local-target-device-backends=llvm-cpu";
+    const char* iree_arg2 = "--iree-llvmcpu-target-cpu=host";
+    std::vector<const char*> iree_args { iree_arg0, iree_arg1, iree_arg2 };
+
+    // @todo: Need to check each return status
+    ireeCompilerSessionSetFlags(session, 3, iree_args.data());
+
+    iree_compiler_source_t *source = NULL;
+    ireeCompilerSourceWrapBuffer(session, "buffer", mlir_text.get(), mlir_text_size + 1, true, &source);
+
+    // Use an invocation to compile from the input source to one or more outputs.
+    iree_compiler_invocation_t *inv = ireeCompilerInvocationCreate(session);
+    ireeCompilerInvocationParseSource(inv, source);
+    ireeCompilerInvocationPipeline(inv, IREE_COMPILER_PIPELINE_STD);
+
+    // Output the compiled artifact to a file.
+    iree_compiler_output_t *output = NULL;
+    ireeCompilerOutputOpenMembuffer(&output);
+    ireeCompilerInvocationOutputVMBytecode(inv, output);
+
+    char* mlir_compiled = nullptr;
+    // Getting a required buffer size
+    ireeCompilerOutputMapMemory(output, reinterpret_cast<void**>(&mlir_compiled), &m_compiled_size);
+    m_compiled = new uint8_t[m_compiled_size];
+    memcpy_s(m_compiled, m_compiled_size, mlir_compiled, m_compiled_size);
+
+    // Cleanup state.
+    ireeCompilerInvocationDestroy(inv);
+    ireeCompilerOutputDestroy(output);
+    ireeCompilerSourceDestroy(source);
+    ireeCompilerSessionDestroy(session);
+
+#if 1
+    std::fstream debug_dump("debug_dump.vmfb", std::ios::binary | std::ios::out);
+    debug_dump.write(reinterpret_cast<const char*>(m_compiled), m_compiled_size);
+    debug_dump.close();
+#endif
+}
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OPENVINO_THROW("Not implemented");
@@ -109,6 +190,10 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
+    generate_mlir(stream);
+}
+
+void CompiledModel::generate_mlir(std::ostream& stream) const {
     auto& ss = stream;
     ss << "module @" << m_model->get_friendly_name() << " {\n";
 
@@ -144,7 +229,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
                 it = ov_to_aten.find(type_info.name);
             }
             if (it != ov_to_aten.end()) {
-                std::cout << "Found simple translator for " << type_info.name << " to " << it->second << std::endl;
+                // std::cout << "Found simple translator for " << type_info.name << " to " << it->second << std::endl;
                 translator_ov_to_aten(node, ss, it->second);
                 continue;
             }
@@ -203,6 +288,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 void CompiledModel::set_property(const ov::AnyMap& properties) {
     (void)properties;
     OPENVINO_THROW("Not implemented");
+}
+
+void CompiledModel::reset_compiled() {
+    if(m_compiled) {
+        delete[] m_compiled;
+    }
+    m_compiled = nullptr;
+    m_compiled_size = 0;
 }
 
 } // namespace mlir

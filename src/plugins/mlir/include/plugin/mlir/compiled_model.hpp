@@ -12,11 +12,16 @@ namespace mlir {
 class CompiledModel final : public ov::ICompiledModel {
 private:
     std::shared_ptr<const ov::Model> m_model;
+    uint8_t *m_compiled;
+    size_t m_compiled_size;
+
 public:
     CompiledModel(
         const std::shared_ptr<const ov::Model>& model,
         const std::shared_ptr<const ov::IPlugin>& plugin);
     ~CompiledModel() override;
+
+    void init();
 
     // Create synchronous or async infer request (depending on your dev API)
     // If your ICompiledModel has only one of these, remove the other.
@@ -32,6 +37,10 @@ public:
     // Properties (RW)
     ov::Any get_property(const std::string& name) const override;
     void set_property(const ov::AnyMap& properties) override;
+
+protected:
+    void generate_mlir(std::ostream& stream) const;
+    void reset_compiled();
 };
 
 

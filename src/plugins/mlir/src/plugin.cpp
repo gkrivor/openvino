@@ -50,7 +50,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
     const ov::SoPtr<ov::IRemoteContext>& context) const {
     (void)properties;
     (void)context;
-    return std::make_shared<CompiledModel>(model, shared_from_this());
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this());
+    compiled_model->init();
+    return compiled_model;
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
