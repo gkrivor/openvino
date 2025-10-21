@@ -9,7 +9,7 @@ namespace iree {
 class Plugin : public ov::IPlugin {
 public:
     Plugin();
-    ~Plugin() override = default;
+    ~Plugin() override;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(
         const std::shared_ptr<const ov::Model>& model,
