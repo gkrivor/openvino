@@ -15,6 +15,10 @@ Plugin::Plugin() {
     set_device_name("IREE");
 }
 
+Plugin::~Plugin() {
+    // @todo: call here a global destructors/shutdown methods
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& config) const {
