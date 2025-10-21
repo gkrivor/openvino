@@ -1,7 +1,7 @@
 #include "plugin/mlir/common.hpp"
 
 namespace ov {
-namespace mlir {
+namespace iree {
 
 namespace {
 template <typename Range>

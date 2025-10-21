@@ -6,7 +6,7 @@
 #include <openvino/op/op.hpp>
 
 namespace ov {
-namespace mlir {
+namespace iree {
 
 /* ================ Translators Registration Processing ================ */
 using translator_func = void(*)(const std::shared_ptr<const ov::Node>& node, std::ostream& ss);

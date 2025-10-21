@@ -8,7 +8,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace ov {
-namespace mlir {
+namespace iree {
 
 namespace {
 
@@ -281,5 +281,5 @@ std::vector<ov::ProfilingInfo> AsyncInferRequest::get_profiling_info() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-} // namespace mlir    
+} // namespace iree    
 } // namespace ov

@@ -114,7 +114,7 @@ ov_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
 ov_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" ON)
 ov_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 ov_option (ENABLE_TEMPLATE "Enable template plugin" ON)
-ov_option (ENABLE_MLIR "Enable MLIR plugin" ON)
+ov_option (ENABLE_IREE "Enable IREE plugin" ON)
 
 ov_dependent_option (ENABLE_PLUGINS_XML "Generate plugins.xml configuration file or not" OFF "BUILD_SHARED_LIBS" OFF)
 

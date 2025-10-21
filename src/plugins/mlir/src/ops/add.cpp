@@ -1,7 +1,7 @@
 #include "plugin/mlir/common.hpp"
 #include "openvino/op/add.hpp"
 
-using namespace ov::mlir;
+using namespace ov::iree;
 
 static void translator_add(const std::shared_ptr<const ov::Node>& node, std::ostream& ss) {
     auto add = std::dynamic_pointer_cast<const ov::op::v1::Add>(node);

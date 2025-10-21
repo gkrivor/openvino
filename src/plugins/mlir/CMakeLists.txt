@@ -1,13 +1,13 @@
-if(NOT ENABLE_MLIR)
+if(NOT ENABLE_IREE)
     return()
 endif()
 
-set(TARGET_NAME "openvino_mlir_plugin")
+set(TARGET_NAME "openvino_iree_plugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/ops/*.cpp)
 
 ov_add_plugin(NAME ${TARGET_NAME}
-              DEVICE_NAME "MLIR"
+              DEVICE_NAME "IREE"
               PSEUDO_DEVICE
               SOURCES ${SOURCES}
               VERSION_DEFINES_FOR src/plugin.cpp)

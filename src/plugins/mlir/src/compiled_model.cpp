@@ -7,7 +7,7 @@
 #include <fstream>
 
 namespace ov {
-namespace mlir {
+namespace iree {
 
 static std::mutex translators_mutex;
 static std::map<std::string, std::string> ov_to_aten = {
@@ -306,5 +306,5 @@ void CompiledModel::reset_compiled() {
     m_compiled_size = 0;
 }
 
-} // namespace mlir
+} // namespace iree
 } // namespace ov

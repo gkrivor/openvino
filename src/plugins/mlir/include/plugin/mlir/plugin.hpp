@@ -4,7 +4,7 @@
 #include <memory>
 
 namespace ov {
-namespace mlir {
+namespace iree {
 
 class Plugin : public ov::IPlugin {
 public:
@@ -43,5 +43,5 @@ public:
                                     const ov::AnyMap& properties) const override;
 };
 
-} // namespace mlir
+} // namespace iree
 } // namespace ov

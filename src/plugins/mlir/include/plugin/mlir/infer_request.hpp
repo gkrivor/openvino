@@ -17,7 +17,7 @@ struct iree_hal_device_t;
 struct iree_runtime_session_t;
 
 namespace ov {
-namespace mlir {
+namespace iree {
 
 class SyncInferRequest : public ov::ISyncInferRequest {
 public:
@@ -75,5 +75,5 @@ private:
     iree_runtime_session_t *m_iree_session;
 };
 
-} // namespace mlir   
+} // namespace iree   
 } // namespace ov

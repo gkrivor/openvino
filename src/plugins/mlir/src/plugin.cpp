@@ -7,12 +7,12 @@
 #include <mutex>
 
 namespace ov {
-namespace mlir {
+namespace iree {
 
 static std::vector<ov::PropertyName> supported_configKeys = {};
 
 Plugin::Plugin() {
-    set_device_name("MLIR");
+    set_device_name("IREE");
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
@@ -102,10 +102,10 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return {};
 }
 
-} // namespace mlir
+} // namespace iree
 } // namesppace ov
 
 // ! [plugin:create_plugin_engine]
-static const ov::Version version = {CI_BUILD_NUMBER, "openvino_mlir_plugin"};
-OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::mlir::Plugin, version)
+static const ov::Version version = {CI_BUILD_NUMBER, "openvino_iree_plugin"};
+OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::iree::Plugin, version)
 // ! [plugin:create_plugin_engine]

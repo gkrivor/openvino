@@ -4,7 +4,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 
-using namespace ov::mlir;
+using namespace ov::iree;
 
 #define MAX_INLINE_CONST 20
 

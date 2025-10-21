@@ -7,7 +7,7 @@ namespace ov {
 class Model;
 class Node;
 
-namespace mlir {
+namespace iree {
 
 class CompiledModel final : public ov::ICompiledModel {
 private:
@@ -55,5 +55,5 @@ protected:
 };
 
 
-} // namespace mlir
+} // namespace iree
 } // namespace ov
