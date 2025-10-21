@@ -14,10 +14,9 @@ private:
     std::shared_ptr<const ov::Model> m_model;
     uint8_t *m_compiled;
     size_t m_compiled_size;
+    std::string m_module_name;
 
 public:
-    friend class SyncInferRequest;
-    friend class AsyncInferRequest;
     CompiledModel(
         const std::shared_ptr<const ov::Model>& model,
         const std::shared_ptr<const ov::IPlugin>& plugin);
@@ -39,6 +38,16 @@ public:
     // Properties (RW)
     ov::Any get_property(const std::string& name) const override;
     void set_property(const ov::AnyMap& properties) override;
+
+    const uint8_t* get_compiled_mlir() const {
+        return m_compiled;
+    }
+    size_t get_compiled_mlir_size() const {
+        return m_compiled_size;
+    }
+    std::string get_module_name() const {
+        return m_module_name;
+    }
 
 protected:
     void generate_mlir(std::ostream& stream) const;

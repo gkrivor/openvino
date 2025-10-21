@@ -69,7 +69,7 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
 private:
-    std::shared_ptr<ov::ICompiledModel> m_compiled_model;
+    std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     std::shared_ptr<SyncInferRequest> m_sync_request;
     iree_hal_device_t* m_iree_device;
     iree_runtime_session_t *m_iree_session;

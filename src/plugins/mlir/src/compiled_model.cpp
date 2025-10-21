@@ -122,6 +122,8 @@ CompiledModel::~CompiledModel() {
 }
 
 void CompiledModel::init() {
+    m_module_name = m_model->get_friendly_name() + "." + m_model->get_friendly_name();
+
     std::shared_ptr<char> mlir_text = nullptr;
     size_t mlir_text_size = 0;
     {
@@ -200,6 +202,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
 void CompiledModel::generate_mlir(std::ostream& stream) const {
     auto& ss = stream;
+
     ss << "module @" << m_model->get_friendly_name() << " {\n";
 
     ss << "  func.func @" << m_model->get_friendly_name() << "(";
