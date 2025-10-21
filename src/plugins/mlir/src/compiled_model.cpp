@@ -178,11 +178,16 @@ void CompiledModel::init() {
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
-    OPENVINO_THROW("Not implemented");
+    auto internal_request = create_sync_infer_request();
+    auto async_infer_request =
+        std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
+                                            get_task_executor(),
+                                            get_callback_executor());
+    return async_infer_request;
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
-    OPENVINO_THROW("Not implemented");
+    return std::make_shared<SyncInferRequest>(shared_from_this());
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

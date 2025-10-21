@@ -16,6 +16,8 @@ private:
     size_t m_compiled_size;
 
 public:
+    friend class SyncInferRequest;
+    friend class AsyncInferRequest;
     CompiledModel(
         const std::shared_ptr<const ov::Model>& model,
         const std::shared_ptr<const ov::IPlugin>& plugin);
