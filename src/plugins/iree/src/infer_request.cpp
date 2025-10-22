@@ -120,6 +120,15 @@ AsyncInferRequest::~AsyncInferRequest() {
 
 void AsyncInferRequest::infer() {
     iree_status_t status = nullptr;
+
+    if(m_iree_session) {
+        iree_runtime_session_release(m_iree_session);
+    }
+
+    if(m_iree_device) {
+        iree_hal_device_release(m_iree_device);
+    }
+
     std::cout << "Device creation...";
     status = iree_runtime_instance_try_create_default_device(iree::instance, iree_make_cstring_view("local-task"), &m_iree_device);
     if(status) {
@@ -150,10 +159,15 @@ void AsyncInferRequest::infer() {
     }
     std::cout << "OK\n";
 
-    iree_runtime_call_t call;
+    std::shared_ptr<iree_runtime_call_t> call(new iree_runtime_call_t, [](iree_runtime_call_t* p) {
+        if(p) {
+            iree_runtime_call_deinitialize(p);
+        }
+        delete p;
+    });
     std::cout << "Initialize by name...";
     status = iree_runtime_call_initialize_by_name(
-        m_iree_session, iree_make_cstring_view(compiled_model->get_module_name().c_str()), &call);
+        m_iree_session, iree_make_cstring_view(compiled_model->get_module_name().c_str()), call.get());
     if(status) {
         OPENVINO_THROW("Error initialization module");
     }
@@ -206,7 +220,7 @@ void AsyncInferRequest::infer() {
         std::cout << std::endl;
         std::cout << "Pushing input to call...";
         // Add to the call inputs list (which retains the buffer view).
-        status = iree_runtime_call_inputs_push_back_buffer_view(&call, buffer);
+        status = iree_runtime_call_inputs_push_back_buffer_view(call.get(), buffer);
         if(status) {
             OPENVINO_THROW("Error pushing input");
         }
@@ -216,7 +230,7 @@ void AsyncInferRequest::infer() {
     }
 
     std::cout << "Invoking runtime...";
-    status = iree_runtime_call_invoke(&call, /*flags=*/0);
+    status = iree_runtime_call_invoke(call.get(), /*flags=*/0);
     if(status) {
         OPENVINO_THROW("Error invoking runtime");
     }
@@ -225,7 +239,7 @@ void AsyncInferRequest::infer() {
     for(auto node : get_outputs()) {
         std::cout << "Reading output " << node.get_any_name() << "...";
         iree_hal_buffer_view_t* buffer = NULL;
-        status = iree_runtime_call_outputs_pop_front_buffer_view(&call, &buffer);
+        status = iree_runtime_call_outputs_pop_front_buffer_view(call.get(), &buffer);
         if(status) {
             OPENVINO_THROW("Cannot get output buffer view");
         }
@@ -248,7 +262,6 @@ void AsyncInferRequest::infer() {
         iree_hal_buffer_unmap_range(&buffer_mapping);
         iree_hal_buffer_view_release(buffer);
     }
-    iree_runtime_call_deinitialize(&call);
 }
 
 void AsyncInferRequest::start_async() {
