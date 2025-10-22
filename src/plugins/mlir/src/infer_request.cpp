@@ -22,10 +22,10 @@ void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor, const ov::element::Typ
 
 }  // namespace
 
-namespace iree {
 static iree_runtime_instance_t* instance = NULL;
 
-static void init() {
+namespace lib {
+void init_runtime() {
     static bool is_initialized = false;
     if(is_initialized) {
         return;
@@ -38,6 +38,13 @@ static void init() {
     // @todo: think how to call a GlobalShutdown...
     is_initialized = true;
 }
+
+void deinit_runtime() {
+    if(instance) {
+        iree_runtime_instance_release(instance);
+    }
+}
+
 }
 
 SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
@@ -46,7 +53,6 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ov::ICompiledMode
     if (!m_compiled_model) {
         OPENVINO_THROW("Bad arguments");
     }
-    iree::init();
     // Allocate input/output tensors
     for (const auto& input : get_inputs()) {
         allocate_tensor(input, [input](ov::SoPtr<ov::ITensor>& tensor) {

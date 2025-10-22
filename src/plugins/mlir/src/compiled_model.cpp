@@ -90,8 +90,8 @@ void translator_ov_to_aten(const std::shared_ptr<const ov::Node>& node, std::ost
     ss << "\n";
 }
 
-namespace iree {
-static void init() {
+namespace lib {
+void init_compiler() {
     static bool is_initialized = false;
     if(is_initialized) {
         return;
@@ -105,6 +105,11 @@ static void init() {
     // @todo: think how to call a GlobalShutdown...
     is_initialized = true;
 }
+
+void deinit_compiler() {
+    ireeCompilerGlobalShutdown();
+}
+
 }
 
 CompiledModel::CompiledModel(
@@ -114,7 +119,6 @@ CompiledModel::CompiledModel(
     m_model(model), // @todo need to copy model
     m_compiled(nullptr),
     m_compiled_size(0) {
-    iree::init();
 }
 
 CompiledModel::~CompiledModel() {

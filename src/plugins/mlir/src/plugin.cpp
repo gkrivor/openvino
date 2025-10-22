@@ -11,12 +11,23 @@ namespace iree {
 
 static std::vector<ov::PropertyName> supported_configKeys = {};
 
+namespace lib {
+    // These functions declared in other modules, linker will find them
+    void init_compiler();
+    void deinit_compiler();
+    void init_runtime();
+    void deinit_runtime();
+}
+
 Plugin::Plugin() {
     set_device_name("IREE");
+    lib::init_compiler();
+    lib::init_runtime();
 }
 
 Plugin::~Plugin() {
-    // @todo: call here a global destructors/shutdown methods
+    lib::deinit_runtime();
+    lib::deinit_compiler();
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
