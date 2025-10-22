@@ -54,6 +54,7 @@ static std::map<std::string, std::string> ov_to_aten = {
     {"Erf", "torch.aten.erf"},
     {"Relu", "torch.aten.relu"},
     {"Reshape", "torch.aten.view"}, // ???
+    {"ShapeOf", "torch.aten._shape_as_tensor"},
 
 };
 
@@ -139,6 +140,11 @@ void CompiledModel::init() {
         ss->seekg(0, std::ios::beg);
         ss->read(mlir_text.get(), mlir_text_size);
         *(mlir_text.get() + mlir_text_size) = 0;
+#if 1
+    std::fstream debug_dump("debug_dump.mlir", std::ios::binary | std::ios::out);
+    debug_dump.write(reinterpret_cast<const char*>(mlir_text.get()), mlir_text_size);
+    debug_dump.close();
+#endif
     }
 
     iree_compiler_session_t *session = ireeCompilerSessionCreate();
