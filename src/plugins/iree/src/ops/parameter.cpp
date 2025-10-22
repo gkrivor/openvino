@@ -1,4 +1,4 @@
-#include "plugin/mlir/common.hpp"
+#include "plugin/iree/common.hpp"
 #include "openvino/op/parameter.hpp"
 
 using namespace ov::iree;

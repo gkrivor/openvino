@@ -1,5 +1,5 @@
-#include "plugin/mlir/infer_request.hpp"
-#include "plugin/mlir/compiled_model.hpp"
+#include "plugin/iree/infer_request.hpp"
+#include "plugin/iree/compiled_model.hpp"
 #pragma warning(push)
 #pragma warning(disable : 4146)
 #pragma warning(disable : 4200)

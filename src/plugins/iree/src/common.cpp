@@ -1,4 +1,4 @@
-#include "plugin/mlir/common.hpp"
+#include "plugin/iree/common.hpp"
 
 namespace ov {
 namespace iree {

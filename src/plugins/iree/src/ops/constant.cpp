@@ -1,4 +1,4 @@
-#include "plugin/mlir/common.hpp"
+#include "plugin/iree/common.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/shape.hpp"

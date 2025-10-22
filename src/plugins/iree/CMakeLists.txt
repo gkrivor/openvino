@@ -22,19 +22,19 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
-if(ENABLE_IREE_COMPILER_SRC)
+if(ENABLE_IREE_SRC)
     # iree compiler
-    target_include_directories(${TARGET_NAME} PRIVATE "${ENABLE_IREE_COMPILER_SRC}/compiler/bindings/c")
+    target_include_directories(${TARGET_NAME} PRIVATE "${ENABLE_IREE_SRC}/compiler/bindings/c")
     # iree runtime
     target_compile_definitions(${TARGET_NAME} PRIVATE IREE_ALLOCATOR_SYSTEM_CTL=iree_allocator_libc_ctl)
-    target_include_directories(${TARGET_NAME} PRIVATE "${ENABLE_IREE_COMPILER_SRC}/runtime/src")
+    target_include_directories(${TARGET_NAME} PRIVATE "${ENABLE_IREE_SRC}/runtime/src")
 endif()
 
-if(ENABLE_IREE_COMPILER_LIB)
+if(ENABLE_IREE_LIB)
     # iree compiler
-    target_link_libraries(${TARGET_NAME} PRIVATE "${ENABLE_IREE_COMPILER_LIB}/lib/iree_compiler_bindings_c_loader.lib")
+    target_link_libraries(${TARGET_NAME} PRIVATE "${ENABLE_IREE_LIB}/lib/iree_compiler_bindings_c_loader.lib")
     # iree runtime
-    target_link_libraries(${TARGET_NAME} PRIVATE "${ENABLE_IREE_COMPILER_LIB}/build_tools/third_party/flatcc/flatcc_parsing.lib")
-    target_link_libraries(${TARGET_NAME} PRIVATE "${ENABLE_IREE_COMPILER_LIB}/runtime/src/iree/hal/local/elf/iree_hal_local_elf_arch.lib")
-    target_link_libraries(${TARGET_NAME} PRIVATE "${ENABLE_IREE_COMPILER_LIB}/runtime/src/iree/runtime/iree_runtime_unified.lib")
+    target_link_libraries(${TARGET_NAME} PRIVATE "${ENABLE_IREE_LIB}/build_tools/third_party/flatcc/flatcc_parsing.lib")
+    target_link_libraries(${TARGET_NAME} PRIVATE "${ENABLE_IREE_LIB}/runtime/src/iree/hal/local/elf/iree_hal_local_elf_arch.lib")
+    target_link_libraries(${TARGET_NAME} PRIVATE "${ENABLE_IREE_LIB}/runtime/src/iree/runtime/iree_runtime_unified.lib")
 endif()
