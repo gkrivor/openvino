@@ -78,15 +78,7 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ov::ICompiledMode
 void SyncInferRequest::infer() {
     OPENVINO_NOT_IMPLEMENTED;
 }
-/*
-void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
 
-ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-*/
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
@@ -129,20 +121,16 @@ void AsyncInferRequest::infer() {
         iree_hal_device_release(m_iree_device);
     }
 
-    std::cout << "Device creation...";
     status = iree_runtime_instance_try_create_default_device(iree::instance, iree_make_cstring_view("local-task"), &m_iree_device);
     if(status) {
         OPENVINO_THROW("Error creating iree device");
     }
-    std::cout << "OK\n";
 
     iree_runtime_session_options_t session_options;
     iree_runtime_session_options_initialize(&session_options);
-    std::cout << "Session creation...";
     status = iree_runtime_session_create_with_device(
       iree::instance, &session_options, m_iree_device,
       iree_runtime_instance_host_allocator(iree::instance), &m_iree_session);
-    std::cout << "OK\n";
     if(status) {
         OPENVINO_THROW("Error creating iree session");
     }
@@ -150,14 +138,12 @@ void AsyncInferRequest::infer() {
     auto compiled_model = std::dynamic_pointer_cast<const CompiledModel>(m_compiled_model);
     auto compiled_mlir = compiled_model->get_compiled_mlir();
     size_t compiled_mlir_size = compiled_model->get_compiled_mlir_size();
-    std::cout << "Module creation...";
     status = iree_runtime_session_append_bytecode_module_from_memory(
         m_iree_session, iree_make_const_byte_span(compiled_mlir, compiled_mlir_size),
         iree_allocator_null());
     if(status) {
         OPENVINO_THROW("Error creating iree model");
     }
-    std::cout << "OK\n";
 
     std::shared_ptr<iree_runtime_call_t> call(new iree_runtime_call_t, [](iree_runtime_call_t* p) {
         if(p) {
@@ -165,13 +151,11 @@ void AsyncInferRequest::infer() {
         }
         delete p;
     });
-    std::cout << "Initialize by name...";
     status = iree_runtime_call_initialize_by_name(
         m_iree_session, iree_make_cstring_view(compiled_model->get_module_name().c_str()), call.get());
     if(status) {
         OPENVINO_THROW("Error initialization module");
     }
-    std::cout << "OK\n";
     iree_hal_allocator_t* device_allocator =
         iree_runtime_session_device_allocator(m_iree_session);
     iree_allocator_t host_allocator =
@@ -195,7 +179,6 @@ void AsyncInferRequest::infer() {
             }
             delete p;
         });
-        std::cout << "Creating input " << node.get_any_name() << "...";
         std::vector<iree_hal_dim_t> arg_shape;
         for(auto dim: node.get_shape()) {
             arg_shape.push_back(dim);
@@ -217,28 +200,24 @@ void AsyncInferRequest::infer() {
         if(status) {
             OPENVINO_THROW("Error creating input");
         }
-        std::cout << "OK\n";
+#if 0
         iree_hal_buffer_view_fprint(
           stdout, *buffer, /*max_element_count=*/4096, host_allocator);
         std::cout << std::endl;
-        std::cout << "Pushing input to call...";
+#endif
         // Add to the call inputs list (which retains the buffer view).
         status = iree_runtime_call_inputs_push_back_buffer_view(call.get(), *buffer);
         if(status) {
             OPENVINO_THROW("Error pushing input");
         }
-        std::cout << "OK\n";
     }
 
-    std::cout << "Invoking runtime...";
     status = iree_runtime_call_invoke(call.get(), /*flags=*/0);
     if(status) {
         OPENVINO_THROW("Error invoking runtime");
     }
-    std::cout << "OK\n";
 
     for(auto node : get_outputs()) {
-        std::cout << "Reading output " << node.get_any_name() << "...";
         std::shared_ptr<iree_hal_buffer_view_t*> buffer(new iree_hal_buffer_view_t*(nullptr), [](iree_hal_buffer_view_t** p){
             if(*p) {
                 iree_hal_buffer_view_release(*p);
@@ -249,26 +228,24 @@ void AsyncInferRequest::infer() {
         if(status) {
             OPENVINO_THROW("Cannot get output buffer view");
         }
-        std::cout << "OK\n";
+#if 0
         iree_hal_buffer_view_fprint(
           stdout, *buffer, /*max_element_count=*/4096, host_allocator);
         std::cout << std::endl;
+#endif
         auto tensor = m_sync_request->get_tensor(node);
         std::shared_ptr<iree_hal_buffer_mapping_t> buffer_mapping(new iree_hal_buffer_mapping_t({{0}}), [](iree_hal_buffer_mapping_t* p){
             if(p) {
                 iree_hal_buffer_unmap_range(p);
             }
             delete p;
-            std::cout << "Buffer mapping freed\n";
         });
-        std::cout << "Mapping buffer...";
         status = iree_hal_buffer_map_range(
             iree_hal_buffer_view_buffer(*buffer), IREE_HAL_MAPPING_MODE_SCOPED,
             IREE_HAL_MEMORY_ACCESS_READ, 0, IREE_HAL_WHOLE_BUFFER, buffer_mapping.get());
         if(status) {
             OPENVINO_THROW("Cannot map buffer");
         }
-        std::cout << "OK\n";
         memcpy_s(tensor->data(), tensor->get_byte_size(), buffer_mapping->contents.data, buffer_mapping->contents.data_length);
     }
 }
@@ -290,19 +267,6 @@ bool AsyncInferRequest::wait_for(const std::chrono::milliseconds& /*timeout*/) {
 void AsyncInferRequest::cancel() {
     OPENVINO_NOT_IMPLEMENTED;
 }
-
-/*
-void AsyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
-ov::SoPtr<ov::ITensor> AsyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    // 3rd call on infer
-    std::cout << "Asked for: " << port.get_any_name() << std::endl;
-    // Cannot imagine everything is fine
-    OPENVINO_NOT_IMPLEMENTED;
-}
-*/
 
 std::vector<ov::SoPtr<ov::IVariableState>> AsyncInferRequest::query_state() const {
     OPENVINO_NOT_IMPLEMENTED;

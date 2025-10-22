@@ -26,17 +26,10 @@ public:
 
     // --- ISyncInferRequest interface ---
     void infer() override;
-
-    // By port (for newer APIs using Output<Node>)
-    // void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
-    // ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
-
-    // State & profiling (commonly part of the interface)
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
 protected:
-    // Helpers often used by derived classes (no-op stubs here)
     void check_tensors() const;
 
 private:
@@ -61,9 +54,6 @@ public:
     void wait() override;                 // wait indefinitely
     bool wait_for(const std::chrono::milliseconds& timeout) override;
     void cancel() override;
-
-    // void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
-    // ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
