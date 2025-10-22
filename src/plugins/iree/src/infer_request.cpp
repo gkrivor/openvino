@@ -10,6 +10,9 @@
 namespace ov {
 namespace iree {
 
+// Defined in common.cpp
+iree_hal_element_types_t ov_to_iree_type(ov::element::Type t);
+
 namespace {
 
 void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor, const ov::element::Type& element_type, const ov::Shape& shape) {
@@ -186,7 +189,7 @@ void AsyncInferRequest::infer() {
             // Shape rank and dimensions:
             arg_shape.size(), arg_shape.data(),
             // Element type:
-            IREE_HAL_ELEMENT_TYPE_FLOAT_32,
+            ov_to_iree_type(node.get_element_type()),
             // Encoding type:
             IREE_HAL_ENCODING_TYPE_DENSE_ROW_MAJOR,
             buffer_params,
