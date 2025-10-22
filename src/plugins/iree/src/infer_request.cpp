@@ -189,9 +189,12 @@ void AsyncInferRequest::infer() {
             };
 
     for(auto node: get_inputs()) {
-        iree_hal_buffer_view_t* buffer = NULL;
-        //static const iree_hal_dim_t arg0_shape[1] = {4};
-        //static const float arg0_data[4] = {1.0f, 1.1f, 1.2f, 1.3f};
+        std::shared_ptr<iree_hal_buffer_view_t*> buffer(new iree_hal_buffer_view_t*(nullptr), [](iree_hal_buffer_view_t** p){
+            if(*p) {
+                iree_hal_buffer_view_release(*p);
+            }
+            delete p;
+        });
         std::cout << "Creating input " << node.get_any_name() << "...";
         std::vector<iree_hal_dim_t> arg_shape;
         for(auto dim: node.get_shape()) {
@@ -210,23 +213,21 @@ void AsyncInferRequest::infer() {
             // The actual heap buffer to wrap or clone and its allocator:
             iree_make_const_byte_span(tensor->data(), tensor->get_byte_size()),
             // Buffer view + storage are returned and owned by the caller:
-            &buffer);
+            buffer.get());
         if(status) {
             OPENVINO_THROW("Error creating input");
         }
         std::cout << "OK\n";
         iree_hal_buffer_view_fprint(
-          stdout, buffer, /*max_element_count=*/4096, host_allocator);
+          stdout, *buffer, /*max_element_count=*/4096, host_allocator);
         std::cout << std::endl;
         std::cout << "Pushing input to call...";
         // Add to the call inputs list (which retains the buffer view).
-        status = iree_runtime_call_inputs_push_back_buffer_view(call.get(), buffer);
+        status = iree_runtime_call_inputs_push_back_buffer_view(call.get(), *buffer);
         if(status) {
             OPENVINO_THROW("Error pushing input");
         }
         std::cout << "OK\n";
-        // Since the call retains the buffer view we can release it here.
-        iree_hal_buffer_view_release(buffer);
     }
 
     std::cout << "Invoking runtime...";
@@ -238,29 +239,37 @@ void AsyncInferRequest::infer() {
 
     for(auto node : get_outputs()) {
         std::cout << "Reading output " << node.get_any_name() << "...";
-        iree_hal_buffer_view_t* buffer = NULL;
-        status = iree_runtime_call_outputs_pop_front_buffer_view(call.get(), &buffer);
+        std::shared_ptr<iree_hal_buffer_view_t*> buffer(new iree_hal_buffer_view_t*(nullptr), [](iree_hal_buffer_view_t** p){
+            if(*p) {
+                iree_hal_buffer_view_release(*p);
+            }
+            delete p;
+        });
+        status = iree_runtime_call_outputs_pop_front_buffer_view(call.get(), buffer.get());
         if(status) {
             OPENVINO_THROW("Cannot get output buffer view");
         }
         std::cout << "OK\n";
         iree_hal_buffer_view_fprint(
-          stdout, buffer, /*max_element_count=*/4096, host_allocator);
+          stdout, *buffer, /*max_element_count=*/4096, host_allocator);
         std::cout << std::endl;
         auto tensor = m_sync_request->get_tensor(node);
-        iree_hal_buffer_mapping_t buffer_mapping = {{0}};
+        std::shared_ptr<iree_hal_buffer_mapping_t> buffer_mapping(new iree_hal_buffer_mapping_t({{0}}), [](iree_hal_buffer_mapping_t* p){
+            if(p) {
+                iree_hal_buffer_unmap_range(p);
+            }
+            delete p;
+            std::cout << "Buffer mapping freed\n";
+        });
         std::cout << "Mapping buffer...";
         status = iree_hal_buffer_map_range(
-            iree_hal_buffer_view_buffer(buffer), IREE_HAL_MAPPING_MODE_SCOPED,
-            IREE_HAL_MEMORY_ACCESS_READ, 0, IREE_HAL_WHOLE_BUFFER, &buffer_mapping);
+            iree_hal_buffer_view_buffer(*buffer), IREE_HAL_MAPPING_MODE_SCOPED,
+            IREE_HAL_MEMORY_ACCESS_READ, 0, IREE_HAL_WHOLE_BUFFER, buffer_mapping.get());
         if(status) {
             OPENVINO_THROW("Cannot map buffer");
         }
         std::cout << "OK\n";
-        //memcpy_s(tensor->data(), tensor->get_byte_size(), iree_hal_buffer_view_buffer(buffer), iree_hal_buffer_view_byte_length(buffer));
-        memcpy_s(tensor->data(), tensor->get_byte_size(), buffer_mapping.contents.data, buffer_mapping.contents.data_length);
-        iree_hal_buffer_unmap_range(&buffer_mapping);
-        iree_hal_buffer_view_release(buffer);
+        memcpy_s(tensor->data(), tensor->get_byte_size(), buffer_mapping->contents.data, buffer_mapping->contents.data_length);
     }
 }
 
