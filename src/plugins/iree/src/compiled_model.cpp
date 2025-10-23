@@ -113,6 +113,29 @@ void deinit_compiler() {
 
 }
 
+namespace {
+void torch_variables(std::ostream& ss) {
+    ss << "    %false = torch.constant.bool false\n"
+       << "    %true = torch.constant.bool true\n"
+       << "    %none = torch.constant.none\n";
+    static std::vector<ov::element::Type> supported_types = {
+        ov::element::u8,
+        ov::element::i8,
+        ov::element::i16,
+        ov::element::i32,
+        ov::element::i64,
+        ov::element::f16,
+        ov::element::f32,
+        ov::element::f64,
+        ov::element::bf16,
+        ov::element::boolean
+    };
+    for(auto& t : supported_types) {
+        ss << "    %dtype_" << ov_to_mlir_type(t) << " = torch.constant.int " << static_cast<int>(ov_to_torch_dtype(t)) << "\n";
+    }
+}
+}
+
 CompiledModel::CompiledModel(
     const std::shared_ptr<const ov::Model>& model,
     const std::shared_ptr<const ov::IPlugin>& plugin)
@@ -234,6 +257,9 @@ void CompiledModel::generate_mlir(std::ostream& stream) const {
     }
 
     ss << " {\n";
+
+    // Insert variables for further usage later
+    torch_variables(ss);
 
     auto& translators = get_translators();
 

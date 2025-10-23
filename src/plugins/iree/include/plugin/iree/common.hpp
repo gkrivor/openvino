@@ -22,5 +22,10 @@ void genInputNames(std::ostream& ss, const std::shared_ptr<const ov::Node>& node
 void genInputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node);
 void genOutputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node);
 
+
+/* ================ OpenVINO Type Converters ================ */
+std::string ov_to_mlir_type(ov::element::Type t);
+uint8_t ov_to_torch_dtype(ov::element::Type t);
+
 } // namespace mlir
 } // namespace ov
