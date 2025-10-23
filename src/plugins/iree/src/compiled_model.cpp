@@ -55,6 +55,7 @@ static std::map<std::string, std::string> ov_to_aten = {
     {"Relu", "torch.aten.relu"},
     {"Reshape", "torch.aten.view"}, // ???
     // {"ShapeOf", "torch.aten._shape_as_tensor"},
+    // {"Convert", "torch.aten._copy_to"},
 
 };
 
