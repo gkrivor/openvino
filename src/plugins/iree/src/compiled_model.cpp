@@ -215,6 +215,9 @@ void CompiledModel::init() {
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
+    if(m_compiled == nullptr || m_compiled_size == 0) {
+        OPENVINO_THROW("Model wasn't compiled");
+    }
     auto internal_request = create_sync_infer_request();
     auto async_infer_request =
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
