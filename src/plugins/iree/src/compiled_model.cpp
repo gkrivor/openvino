@@ -244,7 +244,7 @@ void CompiledModel::generate_mlir(std::ostream& stream) const {
     std::string delimeter = "";
     for(auto& arg: inputs()) {
         ss << delimeter << "%" << arg.get_any_name() << ": !torch.vtensor<" << arg.get_partial_shape()
-           << "," << arg.get_element_type().get_type_name() << ">";
+           << "," << ov_to_mlir_type(arg.get_element_type()) << ">";
         delimeter = ", ";
     }
 
@@ -253,7 +253,7 @@ void CompiledModel::generate_mlir(std::ostream& stream) const {
     delimeter = "";
     for(auto& res: outputs()) {
         ss << delimeter << "!torch.vtensor<" << res.get_partial_shape()
-           << "," << res.get_element_type().get_type_name() << ">";
+           << "," << ov_to_mlir_type(res.get_element_type()) << ">";
         delimeter = ", ";
     }
 

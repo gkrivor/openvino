@@ -185,9 +185,9 @@ module @test_abs {
             sep = "x";
         }
         
-        ss << "x" << constant->get_output_element_type(0).get_type_name() << ">) : "
+        ss << "x" << ov_to_mlir_type(constant->get_output_element_type(0)) << ">) : "
            << "!torch.vtensor<" << constant->get_output_partial_shape(0)
-           << "," << constant->get_output_element_type(0).get_type_name() << ">";
+           << "," << ov_to_mlir_type(constant->get_output_element_type(0)) << ">";
     }
 
     void translate_resource_constant(const std::shared_ptr<const ov::op::v0::Constant>& constant, std::ostream& ss) {
@@ -202,9 +202,9 @@ module @test_abs {
             sep = "x";
         }
         
-        ss << "x" << constant->get_output_element_type(0).get_type_name() << ">) : "
+        ss << "x" << ov_to_mlir_type(constant->get_output_element_type(0)) << ">) : "
            << "!torch.vtensor<" << constant->get_output_partial_shape(0)
-           << "," << constant->get_output_element_type(0).get_type_name() << ">";
+           << "," << ov_to_mlir_type(constant->get_output_element_type(0)) << ">";
     }
 
     void print_as_hex(void* data, size_t size, std::ostream& ss) {
