@@ -298,6 +298,19 @@ void CompiledModel::generate_mlir(std::ostream& stream) const {
                << " (" << type_info.name << ")\n";
         }
     }
+    delimeter = "    return ";
+    for(auto& res: outputs()) {
+        ss << delimeter << "%" << res.get_any_name();
+        delimeter = ", ";
+    }
+    ss << " : ";
+    delimeter = "";
+    for(auto& res: outputs()) {
+        ss << delimeter << "!torch.vtensor<" << res.get_partial_shape()
+           << "," << ov_to_mlir_type(res.get_element_type()) << ">";
+        delimeter = ", ";
+    }
+
     ss << "  }\n" // func.func
        << "}\n\n" // module
        << "{-#\n"
