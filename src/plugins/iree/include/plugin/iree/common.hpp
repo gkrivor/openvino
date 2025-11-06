@@ -22,6 +22,10 @@ void genInputNames(std::ostream& ss, const std::shared_ptr<const ov::Node>& node
 void genInputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node);
 void genOutputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node);
 
+/* ================ MLIR Naming Conversion ================ */
+std::string getMLIRName(const ov::Node* node);
+std::string getMLIRName(const std::shared_ptr<const ov::Node>& node);
+std::string getMLIRName(const ov::Output<const ov::Node>& node);
 
 /* ================ OpenVINO Type Converters ================ */
 std::string ov_to_mlir_type(ov::element::Type t);

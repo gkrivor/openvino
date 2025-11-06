@@ -30,7 +30,7 @@ void genInputNames(std::ostream& ss, const std::shared_ptr<const ov::Node>& node
     std::string sep;
     for (const auto& io : node->inputs()) {
         ss << std::exchange(sep, ", ")
-           << "%" << io.get_source_output().get_node()->get_friendly_name();
+           << "%" << getMLIRName(io.get_source_output());
     }
     ss << ")";
 }
@@ -48,6 +48,19 @@ void genOutputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& nod
     }
     genVtensorTypeList(ss, node->outputs());
 }
+
+std::string getMLIRName(const ov::Node* node) {
+    return node->get_friendly_name();
+}
+
+std::string getMLIRName(const std::shared_ptr<const ov::Node>& node) {
+    return getMLIRName(node.get());
+}
+
+std::string getMLIRName(const ov::Output<const ov::Node>& node) {
+    return getMLIRName(node.get_node());
+}
+
 
 /// @brief Function converts OpenVINO's element type to IREE's type. Function declaration is
 /// absent in header and MUST be declared manually in *.cpp file it is using.

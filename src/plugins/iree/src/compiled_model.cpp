@@ -82,7 +82,7 @@ bool register_translator(const std::string& op_type, translator_func func, bool 
 }
 
 void translator_ov_to_aten(const std::shared_ptr<const ov::Node>& node, std::ostream& ss, const std::string& torch_name) {
-    ss << "    %" << node->get_friendly_name()
+    ss << "    %" << getMLIRName(node)
        << " = \"" << torch_name << "\" ";
 
     genInputNames(ss, node);
@@ -247,7 +247,7 @@ void CompiledModel::generate_mlir(std::ostream& stream) const {
 
     std::string delimeter = "";
     for(auto& arg: inputs()) {
-        ss << delimeter << "%" << arg.get_any_name() << ": !torch.vtensor<" << arg.get_partial_shape()
+        ss << delimeter << "%" << getMLIRName(arg) << ": !torch.vtensor<" << arg.get_partial_shape()
            << "," << ov_to_mlir_type(arg.get_element_type()) << ">";
         delimeter = ", ";
     }
@@ -298,13 +298,13 @@ void CompiledModel::generate_mlir(std::ostream& stream) const {
         }
         // Failed to translate operation
         {
-            ss << "  // Unsupported node: " << node->get_friendly_name()
+            ss << "  // Unsupported node: " << getMLIRName(node)
                << " (" << type_info.name << ")\n";
         }
     }
     delimeter = "    return ";
     for(auto& res: outputs()) {
-        ss << delimeter << "%" << res.get_any_name();
+        ss << delimeter << "%" << getMLIRName(res.get_node_shared_ptr()->input(0).get_source_output());
         delimeter = ", ";
     }
     ss << " : ";
@@ -315,7 +315,7 @@ void CompiledModel::generate_mlir(std::ostream& stream) const {
         delimeter = ", ";
     }
 
-    ss << "  }\n" // func.func
+    ss << "\n  }\n" // func.func
        << "}\n\n" // module
        << "{-#\n"
        << "dialect_resources: {\n"
