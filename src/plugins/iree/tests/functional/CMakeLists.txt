@@ -18,15 +18,16 @@ if (ENABLE_STRICT_DEPENDENCIES)
     list(APPEND ONNX_TESTS_DEPENDENCIES openvino_iree_plugin)
 endif()
 
-set(SRC
+file (GLOB SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/*.cpp
+)
+
+list(APPEND SRC
     src/main.cpp
     src/operation_checker.cpp
-    src/op/abs.cpp
 )
 
 # Create target
-
-
 
 add_executable(${TARGET_NAME} ${SRC})
 #add_test(NAME ov_onnx_frontend_tests COMMAND ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*)
