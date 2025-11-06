@@ -12,6 +12,7 @@ namespace iree {
 static std::mutex translators_mutex;
 static std::map<std::string, std::string> ov_to_aten = {
     {"Abs", "torch.aten.abs"},
+    {"Multiply", "torch.aten.mul.Tensor"},
     {"Subtract", "torch.aten.sub"},
     {"Divide", "torch.aten.div"},
     {"Power", "torch.aten.pow"},
