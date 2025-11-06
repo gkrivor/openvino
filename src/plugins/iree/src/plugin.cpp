@@ -26,8 +26,8 @@ Plugin::Plugin() {
 }
 
 Plugin::~Plugin() {
-    lib::deinit_runtime();
-    lib::deinit_compiler();
+    //lib::deinit_runtime();
+    //lib::deinit_compiler();
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
