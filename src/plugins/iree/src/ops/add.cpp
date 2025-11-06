@@ -11,17 +11,7 @@ static void translator_add(const std::shared_ptr<const ov::Node>& node, std::ost
     auto input0_name = getMLIRName(input0);
     auto input1_name = getMLIRName(input1);
     ss << "    %" << getMLIRName(node);
-    if(input0.get_partial_shape().size() > 0 && input1.get_partial_shape().size() == 0) {
-        ss << " = \"torch.aten.add.Scalar\" (%" << input0_name << ", %" << input1_name << ", %const_one) : ("
-           << "!torch.vtensor<" << input0.get_partial_shape() << "," << ov_to_mlir_type(input0.get_element_type()) << ">, "
-           << "!torch.vtensor<" << input1.get_partial_shape() << "," << ov_to_mlir_type(input1.get_element_type()) << ">, "
-           << "!torch.int)";
-    } else if(input0.get_partial_shape().size() == 0 && input1.get_partial_shape().size() > 0) {
-        ss << " = \"torch.aten.add.Scalar\" (%" << input1_name << ", %" << input0_name << ", %const_one) : ("
-           << "!torch.vtensor<" << input1.get_partial_shape() << "," << ov_to_mlir_type(input1.get_element_type()) << ">, "
-           << "!torch.vtensor<" << input0.get_partial_shape() << "," << ov_to_mlir_type(input0.get_element_type()) << ">, "
-           << "!torch.int)";
-    } else if(input0.get_partial_shape().size() > 0 && input1.get_partial_shape().size() > 0) {
+    if(input0.get_partial_shape().size() > 0 && input1.get_partial_shape().size() > 0) {
         ss << " = \"torch.aten.add.Tensor\" (%" << input0_name << ", %" << input1_name << ", %const_one) : ("
            << "!torch.vtensor<" << input0.get_partial_shape() << "," << ov_to_mlir_type(input0.get_element_type()) << ">, "
            << "!torch.vtensor<" << input1.get_partial_shape() << "," << ov_to_mlir_type(input1.get_element_type()) << ">, "
