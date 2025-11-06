@@ -13,7 +13,7 @@ static std::mutex translators_mutex;
 static std::map<std::string, std::string> ov_to_aten = {
     {"Abs", "torch.aten.abs"},
     {"Multiply", "torch.aten.mul.Tensor"},
-    {"Divide", "torch.aten.div"},
+    {"Divide", "torch.aten.div.Tensor"},
     {"Power", "torch.aten.pow"},
     {"Minimum", "torch.aten.min"},
     {"Maximum", "torch.aten.max"},
