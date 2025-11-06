@@ -18,8 +18,8 @@ std::map<std::string, translator_func>& get_translators();
 #define EMIT_POST(OP_TYPE, FUNC) static bool post_processor_reg_##FUNC = register_translator(OP_TYPE, FUNC, true);
 
 /* ================ MLIR generators ================ */
-void genInputNames(std::ostream& ss, const std::shared_ptr<const ov::Node>& node);
-void genInputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node);
+void genInputNames(std::ostream& ss, const std::shared_ptr<const ov::Node>& node, bool braces = true);
+void genInputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node, bool braces = true);
 void genOutputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node);
 
 /* ================ MLIR Naming Conversion ================ */

@@ -25,20 +25,20 @@ void genVtensorTypeList(std::ostream& ss, const Range& range) {
 }
 } // namespace
 
-void genInputNames(std::ostream& ss, const std::shared_ptr<const ov::Node>& node) {
-    ss << "(";
+void genInputNames(std::ostream& ss, const std::shared_ptr<const ov::Node>& node, bool braces) {
+    if(braces) ss << "(";
     std::string sep;
     for (const auto& io : node->inputs()) {
         ss << std::exchange(sep, ", ")
            << "%" << getMLIRName(io.get_source_output());
     }
-    ss << ")";
+    if(braces) ss << ")";
 }
 
-void genInputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node) {
-    ss << "(";
+void genInputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node, bool braces) {
+    if(braces) ss << "(";
     genVtensorTypeList(ss, node->inputs());
-    ss << ")";
+    if(braces) ss << ")";
 }
 
 void genOutputTypes(std::ostream& ss, const std::shared_ptr<const ov::Node>& node) {

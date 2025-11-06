@@ -12,7 +12,6 @@ namespace iree {
 static std::mutex translators_mutex;
 static std::map<std::string, std::string> ov_to_aten = {
     {"Abs", "torch.aten.abs"},
-    {"Add", "torch.aten.add"},
     {"Multiply", "torch.aten.mul"},
     {"Subtract", "torch.aten.sub"},
     {"Divide", "torch.aten.div"},
@@ -119,6 +118,8 @@ namespace {
 void torch_variables(std::ostream& ss) {
     ss << "    %false = torch.constant.bool false\n"
        << "    %true = torch.constant.bool true\n"
+       << "    %const_zero = torch.constant.int 0\n"
+       << "    %const_one = torch.constant.int 1\n"
        << "    %none = torch.constant.none\n";
     static std::vector<ov::element::Type> supported_types = {
         ov::element::u8,
