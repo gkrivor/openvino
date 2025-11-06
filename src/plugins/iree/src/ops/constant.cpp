@@ -122,7 +122,38 @@ module @test_abs {
                     sep = "";
                 }
             }
-            ss << sep << data[i];
+            ss << sep << std::hex << data[i] ;
+            sep = ", ";
+        }
+        for(size_t i = 0; i < shape.size(); ++i) {
+            ss << "]";
+        }
+    }
+
+    template<>
+    void print_values<float>(const std::vector<float>& data, const ov::Shape& shape, std::ostream& ss) {
+        std::string sep;
+        for(size_t i = 0; i < data.size(); ++i) {
+            size_t accum = 1;
+            for(auto dim = shape.rbegin(); dim != shape.rend(); ++dim) {
+                accum *= *dim;
+                if (((i % accum) == 0) && ((i / accum) > 0)) {
+                    ss << "]";
+                }
+            }
+            accum = 1;
+            sep = ", ";
+            for(auto dim = shape.rbegin(); dim != shape.rend(); ++dim) {
+                accum *= *dim;
+                if ((i % accum) == 0) {
+                    if((i / accum) > 0) {
+                        ss << sep;
+                    }
+                    ss << "[";
+                    sep = "";
+                }
+            }
+            ss << sep << "0x" << std::hex << *reinterpret_cast<const uint32_t*>(data.data() + i) ;
             sep = ", ";
         }
         for(size_t i = 0; i < shape.size(); ++i) {
