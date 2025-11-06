@@ -38,3 +38,7 @@ if(ENABLE_IREE_LIB)
     target_link_libraries(${TARGET_NAME} PRIVATE "${ENABLE_IREE_LIB}/runtime/src/iree/hal/local/elf/iree_hal_local_elf_arch.lib")
     target_link_libraries(${TARGET_NAME} PRIVATE "${ENABLE_IREE_LIB}/runtime/src/iree/runtime/iree_runtime_unified.lib")
 endif()
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests/functional)
+endif()
