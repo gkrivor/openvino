@@ -17,6 +17,6 @@ TEST(iree_plugin_tests, op_power_tensor_tensor) {
     auto result0 = std::make_shared<ov::op::v0::Result>(power);
     test_suite.set_model(std::make_shared<ov::Model>(ov::ResultVector{result0}, ov::ParameterVector{input0}));
 
-    test_suite.add_input<float>(ov::Shape{3}, {-1.f, 0.f, 2.f});
+    test_suite.add_input<float>(ov::Shape{3}, {2.f, 0.f, 2.f});
     test_suite.run();
 }

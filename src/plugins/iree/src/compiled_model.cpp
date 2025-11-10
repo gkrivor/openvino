@@ -14,7 +14,7 @@ static std::map<std::string, std::string> ov_to_aten = {
     {"Abs", "torch.aten.abs"},
     {"Multiply", "torch.aten.mul.Tensor"},
     {"Divide", "torch.aten.div.Tensor"},
-    {"Power", "torch.aten.pow"},
+    {"Power", "torch.aten.pow.Tensor_Tensor"},
     {"Minimum", "torch.aten.min"},
     {"Maximum", "torch.aten.max"},
     {"Equal", "torch.aten.eq"},
