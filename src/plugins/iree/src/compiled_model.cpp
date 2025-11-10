@@ -300,6 +300,7 @@ void CompiledModel::generate_mlir(std::ostream& stream) const {
         {
             ss << "  // Unsupported node: " << getMLIRName(node)
                << " (" << type_info.name << ")\n";
+            OPENVINO_THROW(std::string("Unsupported node: ") + type_info.name + " (" + getMLIRName(node) + ")");
         }
     }
     delimeter = "    return ";
