@@ -61,6 +61,10 @@ std::string getMLIRName(const ov::Output<const ov::Node>& node) {
     return getMLIRName(node.get_node());
 }
 
+std::string getMLIRName(const ov::Input<const ov::Node>& node) {
+    return getMLIRName(node.get_source_output());
+}
+
 
 /// @brief Function converts OpenVINO's element type to IREE's type. Function declaration is
 /// absent in header and MUST be declared manually in *.cpp file it is using.
