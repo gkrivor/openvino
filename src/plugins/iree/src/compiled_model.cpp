@@ -55,7 +55,8 @@ static std::map<std::string, std::string> ov_to_aten = {
     {"Broadcast", "torch.aten.broadcast_to"}, // ???
     // {"ShapeOf", "torch.aten._shape_as_tensor"},
     // {"Convert", "torch.aten._copy_to"},
-
+    {"Squeeze", "torch.aten.squeeze"},
+    {"Unsqueeze", "torch.aten.unsqueeze"},
 };
 
 std::map<std::string, translator_func>& get_translators() {
