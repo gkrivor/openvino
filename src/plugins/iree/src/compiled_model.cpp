@@ -268,6 +268,8 @@ void CompiledModel::generate_mlir(std::ostream& stream) const {
 
     auto& translators = get_translators();
 
+    std::set<std::string> unsupported_ops;
+
     for (const auto& node : m_model->get_ordered_ops()) {
         const auto& type_info = node->get_type_info();
         // Direct translators from OV to ATen
@@ -298,10 +300,18 @@ void CompiledModel::generate_mlir(std::ostream& stream) const {
         }
         // Failed to translate operation
         {
-            ss << "  // Unsupported node: " << getMLIRName(node)
-               << " (" << type_info.name << ")\n";
-            OPENVINO_THROW(std::string("Unsupported node: ") + type_info.name + " (" + getMLIRName(node) + ")");
+            unsupported_ops.emplace(type_info.name);
         }
+    }
+    if(unsupported_ops.size() > 0) {
+        std::stringstream msg;
+        msg << "Unsupported nodes: ";
+        std::string delimiter="";
+        for(auto& type_name: unsupported_ops) {
+            msg << delimiter << type_name;
+            delimiter = ", ";
+        }
+        OPENVINO_THROW(msg.str());
     }
     delimeter = "    return ";
     for(auto& res: outputs()) {
